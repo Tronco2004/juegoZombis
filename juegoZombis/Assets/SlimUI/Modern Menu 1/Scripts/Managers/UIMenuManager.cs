@@ -118,9 +118,8 @@ namespace SlimUI.ModernMenu{
 		}
 
 		public void PlayCampaign(){
-			exitMenu.SetActive(false);
-			if(extrasMenu) extrasMenu.SetActive(false);
-			playMenu.SetActive(true);
+			// Cargar directamente la escena del juego
+			LoadScene("Survivalist");
 		}
 		
 		public void PlayCampaignMobile(){
