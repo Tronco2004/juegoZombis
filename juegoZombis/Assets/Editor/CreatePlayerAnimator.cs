@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.Animations;
+using System.Collections.Generic;
 
 public class CreatePlayerAnimator : MonoBehaviour
 {
@@ -13,61 +14,80 @@ public class CreatePlayerAnimator : MonoBehaviour
         // Obtener la state machine
         AnimatorStateMachine stateMachine = controller.layers[0].stateMachine;
 
-        // Buscar los clips
-        string[] allClips = AssetDatabase.FindAssets("t:AnimationClip", new[] { "Assets/AnimacionesJugador" });
-        
-        AnimationClip idleClip = null;
-        AnimationClip runForwardClip = null;
-        AnimationClip runBackwardClip = null;
-        AnimationClip runLeftClip = null;
-        AnimationClip runRightClip = null;
+        // Diccionario para almacenar los clips
+        Dictionary<string, AnimationClip> clips = new Dictionary<string, AnimationClip>();
 
-        // Buscar clips en los FBX
-        string[] fbxFiles = new string[] { 
-            "Assets/AnimacionesJugador/idle.fbx",
-            "Assets/AnimacionesJugador/run forward.fbx",
-            "Assets/AnimacionesJugador/run backward.fbx",
-            "Assets/AnimacionesJugador/run left.fbx",
-            "Assets/AnimacionesJugador/run right.fbx"
+        // Lista de animaciones a buscar (nombre del estado -> ruta del FBX)
+        Dictionary<string, string> animationFiles = new Dictionary<string, string>
+        {
+            // === MOVIMIENTO BÁSICO (sin arma) ===
+            { "idle", "Assets/AnimacionesJugador/idle.fbx" },
+            { "run forward", "Assets/AnimacionesJugador/run forward.fbx" },
+            { "run backward", "Assets/AnimacionesJugador/run backward.fbx" },
+            { "run left", "Assets/AnimacionesJugador/run left.fbx" },
+            { "run right", "Assets/AnimacionesJugador/run right.fbx" },
+            
+            // === PISTOLA ===
+            { "pistol idle", "Assets/Pipa/source/pistol idle.fbx" },
+            { "pistol run", "Assets/Pipa/source/pistol run.fbx" },
+            { "pistol run backward", "Assets/Pipa/source/pistol run backward.fbx" },
+            { "pistol walk", "Assets/Pipa/source/pistol walk.fbx" },
+            { "pistol walk backward", "Assets/Pipa/source/pistol walk backward.fbx" },
+            { "pistol strafe", "Assets/Pipa/source/pistol strafe.fbx" },
+            { "pistol strafe left", "Assets/Pipa/source/pistol strafe.fbx" },
+            { "pistol strafe right", "Assets/Pipa/source/pistol strafe (2).fbx" },
+            { "pistol jump", "Assets/Pipa/source/pistol jump.fbx" },
+            { "pistol kneeling", "Assets/Pipa/source/pistol kneeling idle.fbx" },
+            
+            // === RIFLE (apuntando) ===
+            { "aim", "Assets/AnimacionesJugador/idle aiming.fbx" },
+            { "rifle reload", "Assets/AnimacionesJugador/Reloading.fbx" },
+            
+            // === OTROS ===
+            { "death", "Assets/AnimacionesJugador/death from front headshot.fbx" },
+            { "crouch", "Assets/AnimacionesJugador/idle crouching.fbx" },
         };
 
-        foreach (string fbxPath in fbxFiles)
+        // Buscar clips en los FBX
+        foreach (var kvp in animationFiles)
         {
+            string stateName = kvp.Key;
+            string fbxPath = kvp.Value;
+            
             Object[] assets = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
             foreach (Object asset in assets)
             {
                 if (asset is AnimationClip clip && !clip.name.Contains("__preview__"))
                 {
-                    if (fbxPath.Contains("idle.fbx")) idleClip = clip;
-                    else if (fbxPath.Contains("run forward.fbx")) runForwardClip = clip;
-                    else if (fbxPath.Contains("run backward.fbx")) runBackwardClip = clip;
-                    else if (fbxPath.Contains("run left.fbx")) runLeftClip = clip;
-                    else if (fbxPath.Contains("run right.fbx")) runRightClip = clip;
+                    clips[stateName] = clip;
+                    break;
                 }
             }
         }
 
-        // Crear estados con los nombres exactos
-        AnimatorState idleState = stateMachine.AddState("idle");
-        AnimatorState runForwardState = stateMachine.AddState("run forward");
-        AnimatorState runBackwardState = stateMachine.AddState("run backward");
-        AnimatorState runLeftState = stateMachine.AddState("run left");
-        AnimatorState runRightState = stateMachine.AddState("run right");
+        // Crear estados y asignar clips
+        AnimatorState pistolIdleState = null;
+        foreach (var kvp in clips)
+        {
+            AnimatorState state = stateMachine.AddState(kvp.Key);
+            state.motion = kvp.Value;
+            
+            if (kvp.Key == "pistol idle")
+            {
+                pistolIdleState = state;
+            }
+        }
 
-        // Asignar clips
-        if (idleClip != null) idleState.motion = idleClip;
-        if (runForwardClip != null) runForwardState.motion = runForwardClip;
-        if (runBackwardClip != null) runBackwardState.motion = runBackwardClip;
-        if (runLeftClip != null) runLeftState.motion = runLeftClip;
-        if (runRightClip != null) runRightState.motion = runRightClip;
-
-        // Hacer idle el estado por defecto
-        stateMachine.defaultState = idleState;
+        // Hacer pistol idle el estado por defecto
+        if (pistolIdleState != null)
+        {
+            stateMachine.defaultState = pistolIdleState;
+        }
 
         // Guardar
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
 
-        Debug.Log("¡Animator creado! Arrastra 'PlayerAnimatorFinal' al Animator de tu personaje.");
+        Debug.Log("¡Animator creado con " + clips.Count + " animaciones de pistola y rifle!");
     }
 }
