@@ -12,18 +12,29 @@ public class FPSWeaponController : MonoBehaviour
     public AudioSource audioSource;
     public Camera playerCamera; // Referencia a la cámara
     
+    [Header("Info del Arma")]
+    public string weaponName = "Pistola";
+    
     [Header("Configuración del Arma")]
     public float damage = 25f;
     public float range = 100f;
     public float fireRate = 0.15f; // Tiempo entre disparos
+    public bool isAutomatic = false; // Automático o semi-automático
     public int maxAmmo = 17; // Cargador Glock 17
     public int currentAmmo;
+    public int reserveAmmo = 90; // Munición de reserva
     public float reloadTime = 1.5f;
+    
+    [Header("Cambio de Arma")]
+    public float drawTime = 0.5f; // Tiempo para sacar el arma
+    public float holsterTime = 0.3f; // Tiempo para guardar el arma
     
     [Header("Audio")]
     public AudioClip fireSound;
     public AudioClip reloadSound;
     public AudioClip emptySound;
+    public AudioClip drawSound;
+    public AudioClip holsterSound;
     
     [Header("Efectos")]
     public GameObject impactEffect;
@@ -35,6 +46,14 @@ public class FPSWeaponController : MonoBehaviour
     // Estados
     private float nextTimeToFire = 0f;
     private bool isReloading = false;
+    private bool isDrawing = false;
+    
+    // Evento para el WeaponSwitcher
+    public event System.Action OnHolsterComplete;
+    
+    // Propiedades públicas
+    public bool IsReloading => isReloading;
+    public bool IsDrawing => isDrawing;
     
     // Nombres de animaciones (ajustar según tu FBX)
     private const string ANIM_IDLE = "Idle";
@@ -64,32 +83,38 @@ public class FPSWeaponController : MonoBehaviour
     
     void Update()
     {
-        // No hacer nada si estamos recargando
-        if (isReloading)
+        // No hacer nada si estamos recargando o sacando el arma
+        if (isReloading || isDrawing)
             return;
             
         // Recarga manual con R
         if (Input.GetKeyDown(KeyCode.R))
         {
-            if (currentAmmo < maxAmmo)
+            if (currentAmmo < maxAmmo && reserveAmmo > 0)
             {
                 StartCoroutine(Reload());
             }
             return;
         }
         
-        // Disparo con click izquierdo
-        if (Input.GetButton("Fire1") && Time.time >= nextTimeToFire)
+        // Disparo con click izquierdo (automático o semi-automático)
+        bool shootInput = isAutomatic ? Input.GetButton("Fire1") : Input.GetButtonDown("Fire1");
+        
+        if (shootInput && Time.time >= nextTimeToFire)
         {
             if (currentAmmo > 0)
             {
                 nextTimeToFire = Time.time + fireRate;
                 Shoot();
             }
-            else
+            else if (Input.GetButtonDown("Fire1"))
             {
-                Debug.Log("Sin munición! Recargando...");
-                StartCoroutine(Reload());
+                // Sin munición
+                PlaySound(emptySound);
+                if (reserveAmmo > 0)
+                {
+                    StartCoroutine(Reload());
+                }
             }
         }
     }
@@ -176,9 +201,9 @@ public class FPSWeaponController : MonoBehaviour
     
     System.Collections.IEnumerator Reload()
     {
-        if (currentAmmo >= maxAmmo)
+        if (currentAmmo >= maxAmmo || reserveAmmo <= 0)
         {
-            Debug.Log("Ya está cargado");
+            Debug.Log("No se puede recargar");
             yield break;
         }
             
@@ -197,7 +222,13 @@ public class FPSWeaponController : MonoBehaviour
         
         yield return new WaitForSeconds(reloadTime);
         
-        currentAmmo = maxAmmo;
+        // Calcular munición a recargar
+        int ammoNeeded = maxAmmo - currentAmmo;
+        int ammoToReload = Mathf.Min(ammoNeeded, reserveAmmo);
+        
+        currentAmmo += ammoToReload;
+        reserveAmmo -= ammoToReload;
+        
         isReloading = false;
         
         Debug.Log("Recarga completa!");
@@ -233,6 +264,78 @@ public class FPSWeaponController : MonoBehaviour
     // Para la UI
     public string GetAmmoText()
     {
-        return currentAmmo + " / " + maxAmmo;
+        return currentAmmo + " / " + reserveAmmo;
+    }
+    
+    /// <summary>
+    /// Llamar cuando se equipa el arma (sacarla)
+    /// </summary>
+    public void DrawWeapon()
+    {
+        isDrawing = true;
+        gameObject.SetActive(true);
+        
+        if (animator != null)
+            animator.SetTrigger("Draw");
+        
+        PlaySound(drawSound);
+        
+        StartCoroutine(FinishDrawCoroutine());
+    }
+    
+    System.Collections.IEnumerator FinishDrawCoroutine()
+    {
+        yield return new WaitForSeconds(drawTime);
+        isDrawing = false;
+    }
+    
+    /// <summary>
+    /// Llamar cuando se guarda el arma
+    /// </summary>
+    public void HolsterWeapon()
+    {
+        if (!gameObject.activeSelf)
+        {
+            OnHolsterComplete?.Invoke();
+            return;
+        }
+        
+        StopAllCoroutines();
+        isReloading = false;
+        isDrawing = false;
+        
+        if (animator != null)
+            animator.SetTrigger("Holster");
+        
+        PlaySound(holsterSound);
+        
+        StartCoroutine(FinishHolsterCoroutine());
+    }
+    
+    System.Collections.IEnumerator FinishHolsterCoroutine()
+    {
+        yield return new WaitForSeconds(holsterTime);
+        gameObject.SetActive(false);
+        OnHolsterComplete?.Invoke();
+    }
+    
+    /// <summary>
+    /// Guardar inmediatamente sin animación
+    /// </summary>
+    public void ForceHolster()
+    {
+        StopAllCoroutines();
+        isReloading = false;
+        isDrawing = false;
+        gameObject.SetActive(false);
+        OnHolsterComplete?.Invoke();
+    }
+    
+    /// <summary>
+    /// Añadir munición de reserva
+    /// </summary>
+    public void AddAmmo(int amount)
+    {
+        reserveAmmo += amount;
     }
 }

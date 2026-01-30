@@ -38,6 +38,7 @@ public class WeaponController : MonoBehaviour
     public AudioClip reloadSound;
     public AudioClip emptySound;
     public AudioClip drawSound;
+    public AudioClip holsterSound;
 
     [Header("Efectos")]
     public ParticleSystem muzzleFlash;
@@ -54,8 +55,16 @@ public class WeaponController : MonoBehaviour
     private readonly string ANIM_SHOOT = "Shoot";
     private readonly string ANIM_RELOAD = "Reload";
     private readonly string ANIM_DRAW = "Draw";
+    private readonly string ANIM_HOLSTER = "Holster";
     private readonly string ANIM_AIM = "IsAiming";
     private readonly string ANIM_RUNNING = "IsRunning";
+
+    [Header("Tiempos de Cambio de Arma")]
+    [Tooltip("Duración de la animación de guardar el arma")]
+    public float holsterTime = 0.3f;
+    
+    // Evento cuando termina de guardar el arma
+    public event System.Action OnHolsterComplete;
 
     // Propiedades públicas
     public bool IsReloading => isReloading;
@@ -223,15 +232,51 @@ public class WeaponController : MonoBehaviour
     }
 
     /// <summary>
-    /// Llamar cuando se guarda el arma
+    /// Llamar cuando se guarda el arma (con animación)
     /// </summary>
     public void HolsterWeapon()
+    {
+        // Si no hay animador o el arma ya está inactiva, desactivar inmediatamente
+        if (weaponAnimator == null || !gameObject.activeSelf)
+        {
+            ForceHolster();
+            return;
+        }
+
+        CancelInvoke();
+        isReloading = false;
+        isDrawing = false;
+
+        // Reproducir animación de guardar
+        weaponAnimator.SetTrigger(ANIM_HOLSTER);
+        PlaySound(holsterSound);
+
+        // Esperar a que termine la animación y luego desactivar
+        Invoke(nameof(FinishHolster), holsterTime);
+    }
+
+    void FinishHolster()
+    {
+        gameObject.SetActive(false);
+        OnHolsterComplete?.Invoke();
+    }
+
+    /// <summary>
+    /// Guardar el arma inmediatamente sin animación
+    /// </summary>
+    public void ForceHolster()
     {
         CancelInvoke();
         isReloading = false;
         isDrawing = false;
         gameObject.SetActive(false);
+        OnHolsterComplete?.Invoke();
     }
+
+    /// <summary>
+    /// Devuelve true si el arma está en proceso de ser guardada
+    /// </summary>
+    public bool IsHolstering => IsInvoking(nameof(FinishHolster));
 
     void PlaySound(AudioClip clip)
     {
