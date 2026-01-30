@@ -43,11 +43,12 @@ public class WeaponSwitcher : MonoBehaviour
             weapon.gameObject.SetActive(false);
         }
 
-        // Equipar el arma inicial
+        // Equipar el arma inicial con animación
         if (weapons.Length > 0)
         {
             currentWeaponIndex = Mathf.Clamp(startingWeaponIndex, 0, weapons.Length - 1);
-            EquipWeapon(currentWeaponIndex);
+            currentWeapon = weapons[currentWeaponIndex];
+            currentWeapon.DrawWeapon(); // Usar DrawWeapon en lugar de SetActive
         }
     }
 
@@ -120,21 +121,52 @@ public class WeaponSwitcher : MonoBehaviour
             return;
         }
 
-        // Desactivar arma actual
+        // Si ya estamos cambiando, ignorar
+        if (isSwitching) return;
+
+        pendingWeaponIndex = index;
+
+        // Si hay un arma actual, guardarla primero con animación
+        if (currentWeapon != null && currentWeapon.gameObject.activeSelf)
+        {
+            isSwitching = true;
+            Debug.Log($"[EquipWeapon] Guardando arma actual: {currentWeapon.weaponName}");
+            
+            // Suscribirse al evento de cuando termine de guardar
+            currentWeapon.OnHolsterComplete += OnHolsterFinished;
+            currentWeapon.HolsterWeapon();
+        }
+        else
+        {
+            // No hay arma actual, equipar directamente
+            FinishEquip(index);
+        }
+    }
+
+    void OnHolsterFinished()
+    {
+        // Desuscribirse del evento
         if (currentWeapon != null)
         {
-            Debug.Log($"[EquipWeapon] Desactivando: {currentWeapon.weaponName} - GameObject: {currentWeapon.gameObject.name}");
-            currentWeapon.gameObject.SetActive(false);
-            Debug.Log($"[EquipWeapon] ¿Está activo después de desactivar? {currentWeapon.gameObject.activeSelf}");
+            currentWeapon.OnHolsterComplete -= OnHolsterFinished;
         }
 
-        // Activar nueva arma
+        // Ahora equipar la nueva arma
+        FinishEquip(pendingWeaponIndex);
+    }
+
+    void FinishEquip(int index)
+    {
         currentWeaponIndex = index;
         currentWeapon = weapons[currentWeaponIndex];
         
-        Debug.Log($"[EquipWeapon] Activando: {currentWeapon.weaponName} - GameObject: {currentWeapon.gameObject.name}");
-        currentWeapon.gameObject.SetActive(true);
-        Debug.Log($"[EquipWeapon] ¿Está activo después de activar? {currentWeapon.gameObject.activeSelf}");
+        Debug.Log($"[EquipWeapon] Sacando arma: {currentWeapon.weaponName}");
+        
+        // Llamar a DrawWeapon que activa el objeto Y reproduce la animación
+        currentWeapon.DrawWeapon();
+        
+        isSwitching = false;
+        pendingWeaponIndex = -1;
 
         Debug.Log($"Arma equipada: {currentWeapon.weaponName}");
     }
@@ -149,6 +181,81 @@ public class WeaponSwitcher : MonoBehaviour
         weapons[weapons.Length - 1] = newWeapon;
         newWeapon.transform.SetParent(transform);
         newWeapon.gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Añadir arma comprada de la pared
+    /// Máximo 2 armas: si ya tiene 2, reemplaza la actual
+    /// </summary>
+    public void AddWeaponFromWall(FPSWeaponController newWeapon)
+    {
+        const int MAX_WEAPONS = 2;
+        
+        // Copiar posición y rotación del arma actual (para que quede igual)
+        Vector3 weaponLocalPos = Vector3.zero;
+        Quaternion weaponLocalRot = Quaternion.identity;
+        
+        if (currentWeapon != null)
+        {
+            weaponLocalPos = currentWeapon.transform.localPosition;
+            weaponLocalRot = currentWeapon.transform.localRotation;
+        }
+        
+        // Configurar el arma nueva como hijo
+        newWeapon.transform.SetParent(transform);
+        newWeapon.transform.localPosition = weaponLocalPos;
+        newWeapon.transform.localRotation = weaponLocalRot;
+        newWeapon.gameObject.SetActive(false);
+        
+        // Asignar cámara al arma
+        if (currentWeapon != null && currentWeapon.playerCamera != null)
+        {
+            newWeapon.playerCamera = currentWeapon.playerCamera;
+        }
+        else
+        {
+            newWeapon.playerCamera = Camera.main;
+        }
+        
+        if (weapons.Length < MAX_WEAPONS)
+        {
+            // Tenemos menos de 2 armas, simplemente añadir
+            System.Array.Resize(ref weapons, weapons.Length + 1);
+            weapons[weapons.Length - 1] = newWeapon;
+            
+            Debug.Log($"[WeaponSwitcher] Nueva arma añadida: {newWeapon.weaponName}. Total: {weapons.Length}");
+            
+            // Cambiar a la nueva arma
+            EquipWeapon(weapons.Length - 1);
+        }
+        else
+        {
+            // Ya tenemos 2 armas, reemplazar la actual
+            FPSWeaponController oldWeapon = currentWeapon;
+            int replaceIndex = currentWeaponIndex;
+            
+            Debug.Log($"[WeaponSwitcher] Reemplazando {oldWeapon.weaponName} por {newWeapon.weaponName}");
+            
+            // Guardar el arma actual primero
+            if (oldWeapon != null && oldWeapon.gameObject.activeSelf)
+            {
+                oldWeapon.ForceHolster();
+            }
+            
+            // Destruir el arma vieja
+            if (oldWeapon != null)
+            {
+                Destroy(oldWeapon.gameObject);
+            }
+            
+            // Poner la nueva arma en el slot
+            weapons[replaceIndex] = newWeapon;
+            
+            // Equipar la nueva arma
+            currentWeapon = newWeapon;
+            currentWeaponIndex = replaceIndex;
+            currentWeapon.DrawWeapon();
+        }
     }
 
     /// <summary>

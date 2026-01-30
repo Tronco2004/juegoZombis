@@ -20,14 +20,15 @@ public class FPSWeaponController : MonoBehaviour
     public float range = 100f;
     public float fireRate = 0.15f; // Tiempo entre disparos
     public bool isAutomatic = false; // Automático o semi-automático
+    public bool hasFireAnimation = true; // Si tiene animación de disparo (desactivar para armas automáticas)
     public int maxAmmo = 17; // Cargador Glock 17
     public int currentAmmo;
     public int reserveAmmo = 90; // Munición de reserva
     public float reloadTime = 1.5f;
     
     [Header("Cambio de Arma")]
-    public float drawTime = 0.5f; // Tiempo para sacar el arma
-    public float holsterTime = 0.3f; // Tiempo para guardar el arma
+    public float drawTime = 0.35f; // Tiempo para sacar el arma
+    public float holsterTime = 0.25f; // Tiempo para guardar el arma
     
     [Header("Audio")]
     public AudioClip fireSound;
@@ -47,6 +48,11 @@ public class FPSWeaponController : MonoBehaviour
     private float nextTimeToFire = 0f;
     private bool isReloading = false;
     private bool isDrawing = false;
+    
+    // Para animación procedural de Draw/Holster
+    private Vector3 originalLocalPosition;
+    private Quaternion originalLocalRotation;
+    private bool hasStoredOriginalTransform = false;
     
     // Evento para el WeaponSwitcher
     public event System.Action OnHolsterComplete;
@@ -123,8 +129,8 @@ public class FPSWeaponController : MonoBehaviour
     {
         currentAmmo--;
         
-        // Animación de disparo
-        if (animator != null)
+        // Animación de disparo (solo si tiene animación de disparo)
+        if (animator != null && hasFireAnimation)
         {
             animator.SetTrigger("Fire");
         }
@@ -179,6 +185,13 @@ public class FPSWeaponController : MonoBehaviour
         {
             Debug.Log("Hit: " + hit.transform.name);
             endPoint = hit.point;
+            
+            // Intentar hacer daño a enemigos
+            EnemyHealth enemy = hit.transform.GetComponent<EnemyHealth>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(damage);
+            }
             
             // Efecto de impacto
             if (impactEffect != null)
@@ -268,6 +281,19 @@ public class FPSWeaponController : MonoBehaviour
     }
     
     /// <summary>
+    /// Guardar la posición original del arma
+    /// </summary>
+    void StoreOriginalTransform()
+    {
+        if (!hasStoredOriginalTransform)
+        {
+            originalLocalPosition = transform.localPosition;
+            originalLocalRotation = transform.localRotation;
+            hasStoredOriginalTransform = true;
+        }
+    }
+    
+    /// <summary>
     /// Llamar cuando se equipa el arma (sacarla)
     /// </summary>
     public void DrawWeapon()
@@ -275,17 +301,43 @@ public class FPSWeaponController : MonoBehaviour
         isDrawing = true;
         gameObject.SetActive(true);
         
-        if (animator != null)
-            animator.SetTrigger("Draw");
+        StoreOriginalTransform();
         
         PlaySound(drawSound);
         
-        StartCoroutine(FinishDrawCoroutine());
+        // Animación procedural: subir el arma desde abajo
+        StartCoroutine(DrawAnimationCoroutine());
     }
     
-    System.Collections.IEnumerator FinishDrawCoroutine()
+    System.Collections.IEnumerator DrawAnimationCoroutine()
     {
-        yield return new WaitForSeconds(drawTime);
+        // Empezar desde abajo y rotado
+        Vector3 startPos = originalLocalPosition + new Vector3(0, -0.3f, -0.1f);
+        Quaternion startRot = originalLocalRotation * Quaternion.Euler(30f, 0, 0);
+        
+        transform.localPosition = startPos;
+        transform.localRotation = startRot;
+        
+        float elapsed = 0f;
+        
+        while (elapsed < drawTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / drawTime;
+            
+            // Curva suave (ease out)
+            float smoothT = 1f - Mathf.Pow(1f - t, 3f);
+            
+            transform.localPosition = Vector3.Lerp(startPos, originalLocalPosition, smoothT);
+            transform.localRotation = Quaternion.Slerp(startRot, originalLocalRotation, smoothT);
+            
+            yield return null;
+        }
+        
+        // Asegurar posición final exacta
+        transform.localPosition = originalLocalPosition;
+        transform.localRotation = originalLocalRotation;
+        
         isDrawing = false;
     }
     
@@ -304,18 +356,44 @@ public class FPSWeaponController : MonoBehaviour
         isReloading = false;
         isDrawing = false;
         
-        if (animator != null)
-            animator.SetTrigger("Holster");
+        StoreOriginalTransform();
         
         PlaySound(holsterSound);
         
-        StartCoroutine(FinishHolsterCoroutine());
+        // Animación procedural: bajar el arma
+        StartCoroutine(HolsterAnimationCoroutine());
     }
     
-    System.Collections.IEnumerator FinishHolsterCoroutine()
+    System.Collections.IEnumerator HolsterAnimationCoroutine()
     {
-        yield return new WaitForSeconds(holsterTime);
+        Vector3 endPos = originalLocalPosition + new Vector3(0, -0.3f, -0.1f);
+        Quaternion endRot = originalLocalRotation * Quaternion.Euler(30f, 0, 0);
+        
+        Vector3 startPos = transform.localPosition;
+        Quaternion startRot = transform.localRotation;
+        
+        float elapsed = 0f;
+        
+        while (elapsed < holsterTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / holsterTime;
+            
+            // Curva suave (ease in)
+            float smoothT = t * t;
+            
+            transform.localPosition = Vector3.Lerp(startPos, endPos, smoothT);
+            transform.localRotation = Quaternion.Slerp(startRot, endRot, smoothT);
+            
+            yield return null;
+        }
+        
         gameObject.SetActive(false);
+        
+        // Restaurar posición para la próxima vez
+        transform.localPosition = originalLocalPosition;
+        transform.localRotation = originalLocalRotation;
+        
         OnHolsterComplete?.Invoke();
     }
     
@@ -327,6 +405,13 @@ public class FPSWeaponController : MonoBehaviour
         StopAllCoroutines();
         isReloading = false;
         isDrawing = false;
+        
+        if (hasStoredOriginalTransform)
+        {
+            transform.localPosition = originalLocalPosition;
+            transform.localRotation = originalLocalRotation;
+        }
+        
         gameObject.SetActive(false);
         OnHolsterComplete?.Invoke();
     }

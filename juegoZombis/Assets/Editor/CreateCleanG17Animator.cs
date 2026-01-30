@@ -10,11 +10,20 @@ public class CreateCleanG17Animator
         string fbxPath = "Assets/brazosPipa/source/G17 Pistol - Animated.fbx";
         string controllerPath = "Assets/brazosPipa/CleanG17.controller";
         
-        AssetDatabase.DeleteAsset(controllerPath);
+        // Borrar COMPLETAMENTE el anterior
+        if (AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath) != null)
+        {
+            AssetDatabase.DeleteAsset(controllerPath);
+            AssetDatabase.Refresh();
+        }
+        
+        // Crear nuevo controller
         AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
         
         controller.AddParameter("Fire", AnimatorControllerParameterType.Trigger);
         controller.AddParameter("Reload", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("Draw", AnimatorControllerParameterType.Trigger);
+        controller.AddParameter("Holster", AnimatorControllerParameterType.Trigger);
         
         var stateMachine = controller.layers[0].stateMachine;
         
@@ -22,6 +31,8 @@ public class CreateCleanG17Animator
         Object[] assets = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
         AnimationClip fireClip = null;
         AnimationClip reloadClip = null;
+        AnimationClip drawClip = null;
+        AnimationClip holsterClip = null;
         
         foreach (Object asset in assets)
         {
@@ -29,6 +40,8 @@ public class CreateCleanG17Animator
             {
                 if (clip.name == "Fire") fireClip = clip;
                 else if (clip.name == "Reload") reloadClip = clip;
+                else if (clip.name == "Draw") drawClip = clip;
+                else if (clip.name == "Holster") holsterClip = clip;
             }
         }
         
@@ -78,7 +91,49 @@ public class CreateCleanG17Animator
             Debug.Log("Reload clip añadido: " + reloadClip.length + "s");
         }
         
+        // Estado Draw (sacar arma)
+        if (drawClip != null)
+        {
+            var drawState = stateMachine.AddState("Draw", new Vector3(300, 250, 0));
+            drawState.motion = drawClip;
+            
+            // Idle -> Draw (con trigger)
+            var toDraw = idleState.AddTransition(drawState);
+            toDraw.AddCondition(AnimatorConditionMode.If, 0, "Draw");
+            toDraw.hasExitTime = false;
+            toDraw.duration = 0;
+            
+            // Draw -> Idle (automático al terminar)
+            var fromDraw = drawState.AddTransition(idleState);
+            fromDraw.hasExitTime = true;
+            fromDraw.exitTime = 1f;
+            fromDraw.duration = 0;
+            
+            Debug.Log("Draw clip añadido: " + drawClip.length + "s");
+        }
+        
+        // Estado Holster (guardar arma)
+        if (holsterClip != null)
+        {
+            var holsterState = stateMachine.AddState("Holster", new Vector3(300, 350, 0));
+            holsterState.motion = holsterClip;
+            
+            // Idle -> Holster (con trigger)
+            var toHolster = idleState.AddTransition(holsterState);
+            toHolster.AddCondition(AnimatorConditionMode.If, 0, "Holster");
+            toHolster.hasExitTime = false;
+            toHolster.duration = 0;
+            
+            // Holster -> Idle (automático al terminar)
+            var fromHolster = holsterState.AddTransition(idleState);
+            fromHolster.hasExitTime = true;
+            fromHolster.exitTime = 1f;
+            fromHolster.duration = 0;
+            
+            Debug.Log("Holster clip añadido: " + holsterClip.length + "s");
+        }
+        
         AssetDatabase.SaveAssets();
-        Debug.Log("=== CleanG17.controller creado con Fire ===");
+        Debug.Log("=== CleanG17.controller creado con Fire, Reload, Draw y Holster ===");
     }
 }

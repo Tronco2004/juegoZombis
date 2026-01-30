@@ -3,13 +3,16 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// UI para mostrar munición, crosshair y stamina
+/// UI para mostrar munición, crosshair, stamina y puntos
 /// </summary>
 public class WeaponUI : MonoBehaviour
 {
     [Header("Referencias UI - Munición")]
     public TextMeshProUGUI ammoText;
     public Image crosshair;
+    
+    [Header("Referencias UI - Puntos")]
+    public TextMeshProUGUI pointsText;
     
     [Header("Referencias UI - Stamina")]
     public RectTransform staminaBar; // RectTransform de la barra de stamina
@@ -28,8 +31,13 @@ public class WeaponUI : MonoBehaviour
     [Header("Referencia al Jugador")]
     public FirstPersonController player;
     
+    private WeaponSwitcher weaponSwitcher;
+    
     void Start()
     {
+        // Buscar el WeaponSwitcher para obtener el arma actual
+        weaponSwitcher = FindObjectOfType<WeaponSwitcher>();
+        
         // Buscar automáticamente el arma si no está asignada
         if (weapon == null)
         {
@@ -49,6 +57,21 @@ public class WeaponUI : MonoBehaviour
                 Debug.Log("[WeaponUI] FirstPersonController encontrado automáticamente");
             }
         }
+        
+        // Suscribirse a cambios de puntos
+        if (PlayerPoints.Instance != null)
+        {
+            PlayerPoints.Instance.OnPointsChanged += UpdatePointsUI;
+            UpdatePointsUI(PlayerPoints.Instance.CurrentPoints);
+        }
+    }
+    
+    void OnDestroy()
+    {
+        if (PlayerPoints.Instance != null)
+        {
+            PlayerPoints.Instance.OnPointsChanged -= UpdatePointsUI;
+        }
     }
     
     void Update()
@@ -59,13 +82,28 @@ public class WeaponUI : MonoBehaviour
     
     void UpdateAmmoUI()
     {
-        if (weapon != null && ammoText != null)
+        // Usar el arma actual del WeaponSwitcher
+        FPSWeaponController currentWeapon = weapon;
+        if (weaponSwitcher != null && weaponSwitcher.CurrentWeapon != null)
         {
-            ammoText.text = weapon.GetAmmoText();
+            currentWeapon = weaponSwitcher.CurrentWeapon;
         }
-        else if (ammoText != null && weapon == null)
+        
+        if (currentWeapon != null && ammoText != null)
+        {
+            ammoText.text = currentWeapon.GetAmmoText();
+        }
+        else if (ammoText != null && currentWeapon == null)
         {
             ammoText.text = "Sin arma";
+        }
+    }
+    
+    void UpdatePointsUI(int points)
+    {
+        if (pointsText != null)
+        {
+            pointsText.text = points.ToString();
         }
     }
     

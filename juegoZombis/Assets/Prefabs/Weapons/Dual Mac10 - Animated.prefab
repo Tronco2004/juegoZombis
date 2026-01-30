@@ -1,0 +1,138 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &904311955969786137
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 143.38518
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0.68
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 172.662
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -3712200388300627914, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: dabfb5c6a7ca26949933ccc779687b1d, type: 2}
+    - target: {fileID: 919132149155446097, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_Name
+      value: Dual Mac10 - Animated
+      objectReference: {fileID: 0}
+    - target: {fileID: 6390938981992767165, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: dabfb5c6a7ca26949933ccc779687b1d, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5145694329944802888}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 4298770215760035653}
+  m_SourcePrefab: {fileID: 100100000, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+--- !u!1 &21861860843912264 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 16ccc8fa8affb2a4498c1ff3bf35e61b, type: 3}
+  m_PrefabInstance: {fileID: 904311955969786137}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5145694329944802888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 21861860843912264}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e1f3130e3577e949a342a8f1d81ef06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 4298770215760035653}
+  firePoint: {fileID: 0}
+  muzzleFlash: {fileID: 0}
+  audioSource: {fileID: 0}
+  playerCamera: {fileID: 0}
+  weaponName: Dual Mac10
+  damage: 25
+  range: 100
+  fireRate: 0.15
+  isAutomatic: 1
+  hasFireAnimation: 0
+  maxAmmo: 17
+  currentAmmo: 0
+  reserveAmmo: 90
+  reloadTime: 1.5
+  drawTime: 0.35
+  holsterTime: 0.25
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}
+  drawSound: {fileID: 0}
+  holsterSound: {fileID: 0}
+  impactEffect: {fileID: 0}
+  bulletPrefab: {fileID: 0}
+  bulletTracer: {fileID: 0}
+  tracerDuration: 0.05
+  usePhysicalBullets: 0
+--- !u!95 &4298770215760035653
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 21861860843912264}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 8884982b4632c6a40a7cb1cb468e3911, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0

@@ -26,6 +26,20 @@ public class Bullet : MonoBehaviour
         if (collision.gameObject.CompareTag("Player"))
             return;
         
+        // Intentar hacer daño al enemigo
+        EnemyHealth enemy = collision.gameObject.GetComponent<EnemyHealth>();
+        if (enemy != null)
+        {
+            enemy.TakeDamage(damage);
+        }
+        
+        // Efecto de impacto
+        if (impactEffect != null)
+        {
+            ContactPoint contact = collision.contacts[0];
+            Instantiate(impactEffect, contact.point, Quaternion.LookRotation(contact.normal));
+        }
+        
         Destroy(gameObject);
     }
 }
