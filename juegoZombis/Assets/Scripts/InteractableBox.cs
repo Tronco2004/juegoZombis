@@ -127,16 +127,15 @@ public class InteractableBox : MonoBehaviour
         Debug.Log("+" + ammoAmount + " munición");
         
         // Buscar el script de disparo del jugador y añadir munición
-        PlayerShooting shooting = player.GetComponent<PlayerShooting>();
-        if (shooting == null)
+        WeaponController weaponController = player.GetComponent<WeaponController>();
+        if (weaponController == null)
         {
-            shooting = player.GetComponentInChildren<PlayerShooting>();
+            weaponController = player.GetComponentInChildren<WeaponController>();
         }
         
-        if (shooting != null)
+        if (weaponController != null)
         {
-            // Si tienes una variable de munición de reserva, añádela aquí
-            // shooting.reserveAmmo += ammoAmount;
+            weaponController.reserveAmmo += ammoAmount;
             Debug.Log("Munición añadida al jugador");
         }
     }

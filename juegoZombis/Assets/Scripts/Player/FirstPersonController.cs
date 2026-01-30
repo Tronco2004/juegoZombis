@@ -31,6 +31,18 @@ public class FirstPersonController : MonoBehaviour
     public AudioSource footstepAudio;
     public AudioClip[] footstepSounds;
 
+    [Header("Stamina")]
+    [Tooltip("Stamina máxima del jugador")]
+    public float maxStamina = 100f;
+    [Tooltip("Stamina actual del jugador")]
+    public float currentStamina = 100f;
+    [Tooltip("Stamina que se gasta por segundo al correr")]
+    public float staminaDrainRate = 15f;
+    [Tooltip("Stamina que se recupera por segundo al caminar")]
+    public float staminaRegenWalking = 5f;
+    [Tooltip("Stamina que se recupera por segundo al estar quieto")]
+    public float staminaRegenIdle = 10f;
+
     // Variables privadas
     private CharacterController controller;
     private Vector3 moveDirection = Vector3.zero;
@@ -41,6 +53,8 @@ public class FirstPersonController : MonoBehaviour
     public bool IsGrounded => controller.isGrounded;
     public bool IsRunning => isRunning;
     public bool IsMoving => controller.velocity.magnitude > 0.1f;
+    public float StaminaPercentage => currentStamina / maxStamina;
+    public bool HasStamina => currentStamina >= 1f; // Mínimo 1 de stamina para poder correr
 
     void Start()
     {
@@ -64,6 +78,7 @@ public class FirstPersonController : MonoBehaviour
         HandleMovement();
         HandleMouseLook();
         HandleCursor();
+        HandleStamina();
     }
 
     void HandleMovement()
@@ -72,8 +87,10 @@ public class FirstPersonController : MonoBehaviour
         float moveX = Input.GetAxisRaw("Horizontal"); // A/D - sin suavizado
         float moveZ = Input.GetAxisRaw("Vertical");   // W/S - sin suavizado
 
-        // Verificar si está corriendo
-        isRunning = Input.GetKey(KeyCode.LeftShift);
+        // Verificar si está corriendo (solo si tiene stamina)
+        bool wantsToRun = Input.GetKey(KeyCode.LeftShift);
+        bool isMoving = (moveX != 0 || moveZ != 0);
+        isRunning = wantsToRun && HasStamina && isMoving;
         float currentSpeed = isRunning ? runSpeed : walkSpeed;
 
         // Calcular dirección de movimiento relativa al jugador
@@ -106,6 +123,71 @@ public class FirstPersonController : MonoBehaviour
 
         // Mover el personaje
         controller.Move(moveDirection * Time.deltaTime);
+    }
+
+    void HandleStamina()
+    {
+        // Obtener input para saber si se está moviendo
+        float moveX = Input.GetAxisRaw("Horizontal");
+        float moveZ = Input.GetAxisRaw("Vertical");
+        bool isMoving = (moveX != 0 || moveZ != 0);
+
+        float previousStamina = currentStamina;
+
+        if (isRunning)
+        {
+            // Gastar stamina al correr
+            float staminaLost = staminaDrainRate * Time.deltaTime;
+            currentStamina -= staminaLost;
+            
+            // La stamina no puede ser negativa
+            if (currentStamina < 0f)
+            {
+                currentStamina = 0f;
+            }
+            
+            Debug.Log($"[STAMINA] Corriendo - Perdida: {staminaLost:F2} | Stamina actual: {currentStamina:F2}/{maxStamina}");
+            
+            // Si la stamina llega a 0, dejar de correr
+            if (currentStamina <= 0f)
+            {
+                Debug.Log("[STAMINA] ¡Sin stamina! El jugador ya no puede correr.");
+            }
+        }
+        else if (isMoving)
+        {
+            // Recuperar stamina lentamente al caminar (+5 por segundo)
+            float staminaGained = staminaRegenWalking * Time.deltaTime;
+            currentStamina += staminaGained;
+            
+            // No superar el máximo
+            if (currentStamina > maxStamina)
+            {
+                currentStamina = maxStamina;
+            }
+            
+            if (previousStamina < maxStamina)
+            {
+                Debug.Log($"[STAMINA] Caminando - Ganada: {staminaGained:F2} | Stamina actual: {currentStamina:F2}/{maxStamina}");
+            }
+        }
+        else
+        {
+            // Recuperar stamina más rápido al estar quieto (+10 por segundo)
+            float staminaGained = staminaRegenIdle * Time.deltaTime;
+            currentStamina += staminaGained;
+            
+            // No superar el máximo
+            if (currentStamina > maxStamina)
+            {
+                currentStamina = maxStamina;
+            }
+            
+            if (previousStamina < maxStamina)
+            {
+                Debug.Log($"[STAMINA] Quieto - Ganada: {staminaGained:F2} | Stamina actual: {currentStamina:F2}/{maxStamina}");
+            }
+        }
     }
 
     void HandleMouseLook()
