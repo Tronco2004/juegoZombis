@@ -94,8 +94,8 @@ ModelImporter:
       name: Reload
       takeName: Scene
       internalID: -3333333333333333333
-      firstFrame: 0
-      lastFrame: 3.3
+      firstFrame: 3.3
+      lastFrame: 3.31
       wrapMode: 0
       orientationOffsetY: 0
       level: 0

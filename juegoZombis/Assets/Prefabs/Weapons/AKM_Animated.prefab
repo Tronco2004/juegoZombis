@@ -114,14 +114,15 @@ MonoBehaviour:
   range: 100
   fireRate: 0.15
   isAutomatic: 1
+  hasFireAnimation: 1
   maxAmmo: 17
   currentAmmo: 0
   reserveAmmo: 90
   reloadTime: 1.5
   drawTime: 0.5
   holsterTime: 0.3
-  fireSound: {fileID: 8300000, guid: e12b4f1a687e8a34b844403abbb69d02, type: 3}
-  reloadSound: {fileID: 0}
+  fireSound: {fileID: 8300000, guid: cfe2e75401edb8f4fb42525e8c0049c9, type: 3}
+  reloadSound: {fileID: 8300000, guid: c4038158836a4d342ab72898b15ba425, type: 3}
   emptySound: {fileID: 0}
   drawSound: {fileID: 0}
   holsterSound: {fileID: 0}

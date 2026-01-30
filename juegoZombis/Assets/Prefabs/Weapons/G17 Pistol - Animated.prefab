@@ -1173,8 +1173,9 @@ MonoBehaviour:
   weaponName: Pistola
   damage: 25
   range: 100
-  fireRate: 0.8
+  fireRate: 0.5
   isAutomatic: 0
+  hasFireAnimation: 1
   maxAmmo: 17
   currentAmmo: 17
   reserveAmmo: 90
@@ -1184,7 +1185,7 @@ MonoBehaviour:
   fireSound: {fileID: 8300000, guid: 4eb6d1fe01c98804995034082eb45c6a, type: 3}
   reloadSound: {fileID: 0}
   emptySound: {fileID: 0}
-  drawSound: {fileID: 0}
+  drawSound: {fileID: 8300000, guid: 6ea7ca3fa6e9aeb40b1eb7fecc66f796, type: 3}
   holsterSound: {fileID: 0}
   impactEffect: {fileID: 0}
   bulletPrefab: {fileID: 0}

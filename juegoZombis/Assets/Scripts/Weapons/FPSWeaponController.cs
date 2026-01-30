@@ -29,6 +29,7 @@ public class FPSWeaponController : MonoBehaviour
     [Header("Cambio de Arma")]
     public float drawTime = 0.35f; // Tiempo para sacar el arma
     public float holsterTime = 0.25f; // Tiempo para guardar el arma
+    public bool useProceduralReload = false; // Recarga procedural (baja y sube el arma) para armas sin animación de recarga
     
     [Header("Audio")]
     public AudioClip fireSound;
@@ -224,16 +225,24 @@ public class FPSWeaponController : MonoBehaviour
         
         Debug.Log("Recargando...");
         
-        // Animación de recarga
-        if (animator != null)
-        {
-            animator.SetTrigger("Reload");
-        }
-        
         // Sonido de recarga
         PlaySound(reloadSound);
         
-        yield return new WaitForSeconds(reloadTime);
+        // Recarga procedural o con animación
+        if (useProceduralReload)
+        {
+            // Recarga procedural: bajar arma, esperar, subir arma
+            yield return StartCoroutine(ProceduralReloadAnimation());
+        }
+        else
+        {
+            // Animación de recarga normal
+            if (animator != null)
+            {
+                animator.SetTrigger("Reload");
+            }
+            yield return new WaitForSeconds(reloadTime);
+        }
         
         // Calcular munición a recargar
         int ammoNeeded = maxAmmo - currentAmmo;
@@ -395,6 +404,58 @@ public class FPSWeaponController : MonoBehaviour
         transform.localRotation = originalLocalRotation;
         
         OnHolsterComplete?.Invoke();
+    }
+    
+    /// <summary>
+    /// Animación procedural de recarga: baja el arma, espera, y la sube
+    /// </summary>
+    System.Collections.IEnumerator ProceduralReloadAnimation()
+    {
+        StoreOriginalTransform();
+        
+        Vector3 startPos = originalLocalPosition;
+        Quaternion startRot = originalLocalRotation;
+        Vector3 downPos = originalLocalPosition + new Vector3(0, -0.4f, -0.15f);
+        Quaternion downRot = originalLocalRotation * Quaternion.Euler(40f, 0, 0);
+        
+        float downTime = reloadTime * 0.25f; // 25% del tiempo para bajar
+        float waitTime = reloadTime * 0.5f;  // 50% del tiempo esperando abajo
+        float upTime = reloadTime * 0.25f;   // 25% del tiempo para subir
+        
+        // Fase 1: Bajar el arma
+        float elapsed = 0f;
+        while (elapsed < downTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / downTime;
+            float smoothT = t * t; // Ease in
+            
+            transform.localPosition = Vector3.Lerp(startPos, downPos, smoothT);
+            transform.localRotation = Quaternion.Slerp(startRot, downRot, smoothT);
+            
+            yield return null;
+        }
+        
+        // Fase 2: Esperar abajo (simulando recarga fuera de cámara)
+        yield return new WaitForSeconds(waitTime);
+        
+        // Fase 3: Subir el arma
+        elapsed = 0f;
+        while (elapsed < upTime)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / upTime;
+            float smoothT = 1f - (1f - t) * (1f - t); // Ease out
+            
+            transform.localPosition = Vector3.Lerp(downPos, startPos, smoothT);
+            transform.localRotation = Quaternion.Slerp(downRot, startRot, smoothT);
+            
+            yield return null;
+        }
+        
+        // Asegurar posición final exacta
+        transform.localPosition = startPos;
+        transform.localRotation = startRot;
     }
     
     /// <summary>
