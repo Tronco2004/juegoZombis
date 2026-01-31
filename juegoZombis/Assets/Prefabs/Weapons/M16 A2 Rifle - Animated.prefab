@@ -1,0 +1,147 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &6554821824260742075
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 0.38182068
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.094
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0.7350006
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: -0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: -3499326293396484272, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: c51e48e09b1e82e4c8b5df3887dd525b, type: 2}
+    - target: {fileID: -1587397008178578375, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 4bfd9c7dcd8f26241a42702c68420e20, type: 2}
+    - target: {fileID: -1045070448569802722, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: 4bfd9c7dcd8f26241a42702c68420e20, type: 2}
+    - target: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_Name
+      value: M16 A2 Rifle - Animated
+      objectReference: {fileID: 0}
+    - target: {fileID: 1046688591577237856, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      propertyPath: m_Materials.Array.data[0]
+      value: 
+      objectReference: {fileID: 2100000, guid: fe26da4fe464908428c500776f8cb591, type: 2}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 5573786776525231560}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 2465810675185367291}
+  m_SourcePrefab: {fileID: 100100000, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+--- !u!1 &6212168582370371306 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+  m_PrefabInstance: {fileID: 6554821824260742075}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &5573786776525231560
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6212168582370371306}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9e1f3130e3577e949a342a8f1d81ef06, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 2465810675185367291}
+  firePoint: {fileID: 0}
+  muzzleFlash: {fileID: 0}
+  audioSource: {fileID: 0}
+  playerCamera: {fileID: 0}
+  weaponName: M16
+  damage: 25
+  range: 100
+  fireRate: 0.15
+  isAutomatic: 1
+  hasFireAnimation: 1
+  maxAmmo: 17
+  currentAmmo: 0
+  reserveAmmo: 90
+  reloadTime: 1.5
+  drawTime: 0.35
+  holsterTime: 0.25
+  useProceduralReload: 0
+  fireSound: {fileID: 0}
+  reloadSound: {fileID: 0}
+  emptySound: {fileID: 0}
+  drawSound: {fileID: 0}
+  holsterSound: {fileID: 0}
+  impactEffect: {fileID: 0}
+  bulletPrefab: {fileID: 0}
+  bulletTracer: {fileID: 0}
+  tracerDuration: 0.05
+  usePhysicalBullets: 0
+--- !u!95 &2465810675185367291
+Animator:
+  serializedVersion: 5
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6212168582370371306}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: ef0f2cf6ae94d7a438024c9400e1ab0b, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
