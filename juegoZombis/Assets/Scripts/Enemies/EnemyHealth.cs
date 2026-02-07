@@ -8,6 +8,9 @@ public class EnemyHealth : MonoBehaviour
 {
     [Header("Vida")]
     public float maxHealth = 100f;
+    public float minRandomHealth = 100f; // Vida mínima aleatoria
+    public float maxRandomHealth = 200f; // Vida máxima aleatoria
+    public bool useRandomHealth = true; // Usar vida aleatoria al iniciar
     public float currentHealth;
     
     [Header("Puntos")]
@@ -28,6 +31,13 @@ public class EnemyHealth : MonoBehaviour
     
     void Start()
     {
+        // Asignar vida aleatoria si está activado
+        if (useRandomHealth)
+        {
+            maxHealth = Random.Range(minRandomHealth, maxRandomHealth);
+            Debug.Log($"[Zombie] Vida aleatoria asignada: {maxHealth}");
+        }
+        
         currentHealth = maxHealth;
         
         audioSource = GetComponent<AudioSource>();

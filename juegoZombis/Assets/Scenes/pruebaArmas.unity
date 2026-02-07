@@ -1096,7 +1096,7 @@ PrefabInstance:
     - target: {fileID: 5998163732684113933, guid: 236e0eaef38be134d84e035ba9c9b3f3, type: 3}
       propertyPath: m_Materials.Array.data[0]
       value: 
-      objectReference: {fileID: 2100000, guid: 0bc4c011e44b220458f62c468f2817c0, type: 2}
+      objectReference: {fileID: 2100000, guid: 963644726f4ac664b93746f576b2556d, type: 2}
     - target: {fileID: 5998163733043800404, guid: 236e0eaef38be134d84e035ba9c9b3f3, type: 3}
       propertyPath: m_LocalPosition.x
       value: 146.01518
@@ -1409,6 +1409,7 @@ GameObject:
   - component: {fileID: 1801705192}
   - component: {fileID: 1801705191}
   - component: {fileID: 1801705194}
+  - component: {fileID: 1801705195}
   m_Layer: 0
   m_Name: Player
   m_TagString: Player
@@ -1499,6 +1500,21 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   startingPoints: 500
   pointsPerKill: 400
+--- !u!114 &1801705195
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1801705190}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4598d92ec5cda3a45851ae9d8664cbb4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  maxHealth: 100
+  currentHealth: 0
+  isDead: 0
 --- !u!1 &1829509245
 GameObject:
   m_ObjectHideFlags: 0
