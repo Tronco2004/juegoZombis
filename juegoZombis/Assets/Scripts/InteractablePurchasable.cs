@@ -202,7 +202,10 @@ public class InteractablePurchasable : MonoBehaviour
         Debug.DrawRay(ray.origin, ray.direction * interactionDistance, Color.red);
         Debug.Log($"[DEBUG RAYCAST] Raycast lanzado, distancia: {interactionDistance}, posición cámara: {ray.origin}");
         
-        if (Physics.Raycast(ray, out hit, interactionDistance))
+        // Raycast ignorando la capa del jugador
+        int layerMask = ~LayerMask.GetMask("Player"); // Ignorar capa "Player"
+        
+        if (Physics.Raycast(ray, out hit, interactionDistance, layerMask, QueryTriggerInteraction.Ignore))
         {
             Debug.Log($"[Raycast] Golpeó ALGO: {hit.transform.name}, distancia: {hit.distance}");
         }
@@ -211,9 +214,9 @@ public class InteractablePurchasable : MonoBehaviour
             Debug.Log($"[Raycast] NO golpeó nada");
         }
         
-        if (Physics.Raycast(ray, out hit, interactionDistance))
+        if (Physics.Raycast(ray, out hit, interactionDistance, layerMask, QueryTriggerInteraction.Ignore))
         {
-            if (showDebugInfo && hit.transform.name.Contains("Valla") || hit.transform.name.Contains("Puerta"))
+            if (showDebugInfo && (hit.transform.name.Contains("Valla") || hit.transform.name.Contains("Puerta")))
                 Debug.Log($"[Raycast] Golpeó: {hit.transform.name}");
             
             // Verificar si golpeamos este objeto o cualquier hijo

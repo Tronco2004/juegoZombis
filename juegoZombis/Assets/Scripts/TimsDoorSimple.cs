@@ -10,7 +10,7 @@ public class TimsDoorSimple : MonoBehaviour
     [SerializeField] private float doorPrice = 1000f;
     [SerializeField] private float openAngle = 90f;
     [SerializeField] private float animationSpeed = 2f;
-    [SerializeField] private float interactionDistance = 5f;
+    [SerializeField] private float interactionDistance = 500f;
     
     [Header("=== AUDIO ===")]
     [SerializeField] private AudioClip doorOpenSound;
@@ -20,19 +20,59 @@ public class TimsDoorSimple : MonoBehaviour
     private bool isOpen = false;
     private bool isAnimating = false;
     private bool isPlayerLooking = false;
+    private bool playerInRange = false; // El jugador está en rango de interacción
     private Quaternion closedRotation;
     private Quaternion openRotation;
     private Camera playerCamera;
     private AudioSource audioSource;
+    private Transform doorMesh; // La malla visible que se rota (Door_Wood o similar)
+    private Vector3 hingePoint; // Punto de bisagra (esquina izquierda inferior)
+    private float currentDoorAngle = 0f; // Ángulo actual de la puerta (0 = cerrada, openAngle = abierta)
+    private Collider triggerCollider; // Collider trigger para detectar rango
     
     void Start()
     {
         Debug.Log("[TimsDoorSimple] ===== INICIANDO PUERTA =====");
         Debug.Log("[TimsDoorSimple] GameObject: " + gameObject.name);
         Debug.Log("[TimsDoorSimple] Precio: $" + doorPrice);
+        Debug.Log("[TimsDoorSimple] Distancia interacción: " + interactionDistance);
         
-        closedRotation = transform.localRotation;
-        openRotation = closedRotation * Quaternion.Euler(0, openAngle, 0);
+        // Buscar la malla visual (Door_Wood o el primer hijo con MeshFilter)
+        doorMesh = transform.Find("Door_Wood");
+        if (doorMesh == null && transform.childCount > 0)
+        {
+            // Si no está llamado Door_Wood, buscar el primer hijo con mesh
+            foreach (Transform child in transform)
+            {
+                if (child.GetComponent<MeshFilter>() != null)
+                {
+                    doorMesh = child;
+                    break;
+                }
+            }
+        }
+        
+        if (doorMesh != null)
+        {
+            Debug.Log("[TimsDoorSimple] Malla encontrada: " + doorMesh.gameObject.name);
+            closedRotation = doorMesh.localRotation;
+            openRotation = closedRotation * Quaternion.Euler(0, -openAngle, 0);  // Negativo para abrir hacia adentro
+            
+            // La bisagra está en la esquina izquierda inferior de la puerta
+            Bounds bounds = GetComponentInChildren<MeshFilter>().sharedMesh.bounds;
+            hingePoint = doorMesh.TransformPoint(new Vector3(-bounds.extents.x, -bounds.extents.y, 0));
+            Debug.Log("[TimsDoorSimple] Punto de bisagra: " + hingePoint);
+        }
+        else
+        {
+            Debug.LogError("[TimsDoorSimple] ¡No se encontró malla de puerta! Usando el GameObject principal");
+            doorMesh = transform;
+            closedRotation = transform.localRotation;
+            openRotation = closedRotation * Quaternion.Euler(0, -openAngle, 0);  // Negativo para abrir hacia adentro
+            hingePoint = transform.position;
+        }
+        
+        currentDoorAngle = 0f;
         
         Debug.Log("[TimsDoorSimple] Rotación cerrada: " + closedRotation.eulerAngles);
         Debug.Log("[TimsDoorSimple] Rotación abierta: " + openRotation.eulerAngles);
@@ -57,85 +97,77 @@ public class TimsDoorSimple : MonoBehaviour
             Debug.Log("[TimsDoorSimple] Cámara encontrada: " + playerCamera.gameObject.name);
         }
         
-        // Asegurar collider
-        Collider col = GetComponent<Collider>();
-        if (col == null)
+        // Crear trigger collider para detección de rango
+        triggerCollider = GetComponent<Collider>();
+        if (triggerCollider != null)
         {
-            Debug.LogWarning("[TimsDoorSimple] No hay collider, creando uno...");
-            MeshFilter mf = GetComponent<MeshFilter>();
-            if (mf != null && mf.sharedMesh != null)
-            {
-                MeshCollider mc = gameObject.AddComponent<MeshCollider>();
-                mc.sharedMesh = mf.sharedMesh;
-                Debug.Log("[TimsDoorSimple] MeshCollider creado");
-            }
-            else
-            {
-                gameObject.AddComponent<BoxCollider>();
-                Debug.Log("[TimsDoorSimple] BoxCollider creado");
-            }
+            triggerCollider.isTrigger = true;
+            Debug.Log("[TimsDoorSimple] Collider convertido a trigger para detección de rango");
         }
         else
         {
-            Debug.Log("[TimsDoorSimple] Collider ya existe: " + col.GetType().Name);
+            BoxCollider bc = gameObject.AddComponent<BoxCollider>();
+            bc.isTrigger = true;
+            bc.size = new Vector3(10, 10, 10);
+            Debug.Log("[TimsDoorSimple] Trigger collider creado");
         }
     }
     
     void Update()
     {
-        if (playerCamera == null)
+        // Si el jugador está en rango, permitir abrir la puerta
+        if (playerInRange && Input.GetKeyDown(KeyCode.E))
         {
-            playerCamera = Camera.main;
-            if (playerCamera == null)
-            {
-                playerCamera = FindObjectOfType<Camera>();
-            }
-            return;
-        }
-        
-        // Raycast
-        Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2f, Screen.height / 2f, 0));
-        RaycastHit hit;
-        
-        isPlayerLooking = false;
-        
-        if (Physics.Raycast(ray, out hit, interactionDistance))
-        {
-            if (hit.transform == transform || hit.transform.IsChildOf(transform))
-            {
-                isPlayerLooking = true;
-                
-                if (Input.GetKeyDown(KeyCode.E))
-                {
-                    TryToggleDoor();
-                }
-            }
+            Debug.Log("[TimsDoorSimple] PRESIONASTE E - Abriendo puerta");
+            TryToggleDoor();
         }
         
         // Animar puerta
         if (isAnimating)
         {
-            Quaternion targetRotation = isOpen ? openRotation : closedRotation;
+            float rotationDirection = isOpen ? -1f : 1f;  // Negativo para abrir, positivo para cerrar
+            float rotationSpeed = openAngle * animationSpeed;  // Grados por segundo
+            float rotationThisFrame = rotationDirection * rotationSpeed * Time.deltaTime;
             
-            Debug.Log("[TimsDoorSimple] Animando... Actual: " + transform.localRotation.eulerAngles + 
-                      " | Target: " + targetRotation.eulerAngles + 
-                      " | isOpen: " + isOpen);
+            currentDoorAngle += rotationThisFrame;
             
-            float rotationDifference = Quaternion.Angle(transform.localRotation, targetRotation);
-            Debug.Log("[TimsDoorSimple] Diferencia de rotación: " + rotationDifference);
-            
-            transform.localRotation = Quaternion.Lerp(
-                transform.localRotation,
-                targetRotation,
-                Time.deltaTime * animationSpeed
-            );
-            
-            if (rotationDifference < 1f)
+            // Limitar el ángulo entre 0 y openAngle
+            if (isOpen && currentDoorAngle <= -openAngle)
             {
-                transform.localRotation = targetRotation;
+                currentDoorAngle = -openAngle;
                 isAnimating = false;
-                Debug.Log("[TimsDoorSimple] Animación completada");
+                Debug.Log("[TimsDoorSimple] Puerta abierta completamente");
             }
+            else if (!isOpen && currentDoorAngle >= 0f)
+            {
+                currentDoorAngle = 0f;
+                isAnimating = false;
+                Debug.Log("[TimsDoorSimple] Puerta cerrada completamente");
+            }
+            
+            // Aplicar la rotación
+            doorMesh.localRotation = closedRotation;
+            doorMesh.RotateAround(hingePoint, Vector3.up, currentDoorAngle);
+        }
+    }
+    
+    void OnTriggerEnter(Collider other)
+    {
+        // El jugador entró al rango de la puerta
+        if (other.CompareTag("Player") || other.name.Contains("Player"))
+        {
+            playerInRange = true;
+            Debug.Log("[TimsDoorSimple] Jugador en rango - Presiona E para abrir");
+        }
+    }
+    
+    void OnTriggerExit(Collider other)
+    {
+        // El jugador salió del rango de la puerta
+        if (other.CompareTag("Player") || other.name.Contains("Player"))
+        {
+            playerInRange = false;
+            Debug.Log("[TimsDoorSimple] Jugador fuera de rango");
         }
     }
     
@@ -173,6 +205,14 @@ public class TimsDoorSimple : MonoBehaviour
     
     void TryToggleDoor()
     {
+        Debug.Log("[TimsDoorSimple] TryToggleDoor() llamado. isOpen: " + isOpen + " | isAnimating: " + isAnimating);
+        
+        if (isAnimating)
+        {
+            Debug.LogWarning("[TimsDoorSimple] Ya está animando!");
+            return;
+        }
+        
         if (isOpen)
         {
             CloseDoor();
@@ -181,18 +221,21 @@ public class TimsDoorSimple : MonoBehaviour
         
         if (PlayerMoney.Instance == null)
         {
-            Debug.LogError("[TimsDoorSimple] PlayerMoney no encontrado!");
+            Debug.LogError("[TimsDoorSimple] ¡PlayerMoney no encontrado!");
             return;
         }
         
+        Debug.Log("[TimsDoorSimple] Dinero actual: $" + PlayerMoney.Instance.currentMoney);
+        
         if (PlayerMoney.Instance.SpendMoney((int)doorPrice))
         {
+            Debug.Log("[TimsDoorSimple] ¡Dinero gastado! Abriendo puerta...");
             OpenDoor();
         }
         else
         {
             PlaySound(errorSound);
-            Debug.Log("[TimsDoorSimple] No tienes dinero");
+            Debug.Log("[TimsDoorSimple] No tienes suficiente dinero");
         }
     }
     
