@@ -200,11 +200,11 @@ public class InteractablePurchasable : MonoBehaviour
         bool isLooking = false;
         
         Debug.DrawRay(ray.origin, ray.direction * interactionDistance, Color.red);
-        Debug.Log($"[DEBUG RAYCAST] Raycast lanzado, distancia: {interactionDistance}");
+        Debug.Log($"[DEBUG RAYCAST] Raycast lanzado, distancia: {interactionDistance}, posición cámara: {ray.origin}");
         
         if (Physics.Raycast(ray, out hit, interactionDistance))
         {
-            Debug.Log($"[Raycast] Golpeó ALGO: {hit.transform.name}");
+            Debug.Log($"[Raycast] Golpeó ALGO: {hit.transform.name}, distancia: {hit.distance}");
         }
         else
         {
