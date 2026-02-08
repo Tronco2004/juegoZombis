@@ -131,8 +131,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 35763}
-  - component: {fileID: 35764}
   - component: {fileID: 35765}
+  - component: {fileID: 35766}
   m_Layer: 0
   m_Name: vallasPuente
   m_TagString: vallas
@@ -157,32 +157,6 @@ Transform:
   - {fileID: 1742034335}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &35764
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 35761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4bd25a2f0a2434842bfac285b623c4a2, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  price: 400
-  objectName: Puerta
-  interactionDistance: 3
-  interactKey: 101
-  animationType: 1
-  openAngle: 90
-  openTowardsPlayer: 1
-  moveDistance: 5
-  animationDuration: 0.5
-  successSound: {fileID: 0}
-  errorSound: {fileID: 0}
-  openSound: {fileID: 0}
-  promptText: {fileID: 0}
-  showDebugInfo: 1
 --- !u!65 &35765
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -204,6 +178,32 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 13.941467, y: 8.964409, z: 2.9066467}
   m_Center: {x: -0.49473572, y: -3.9822044, z: 3.4108658}
+--- !u!114 &35766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 35761}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4bd25a2f0a2434842bfac285b623c4a2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  price: 1000
+  objectName: vallasPuente
+  interactionDistance: 3
+  interactKey: 101
+  animationType: 2
+  openAngle: 90
+  openTowardsPlayer: 0
+  moveDistance: 5
+  animationDuration: 0.5
+  successSound: {fileID: 0}
+  errorSound: {fileID: 0}
+  openSound: {fileID: 0}
+  promptText: {fileID: 0}
+  showDebugInfo: 1
 --- !u!1001 &1431563
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -63658,7 +63658,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6657921995824167259, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_Name
-      value: Player (1)
+      value: Player
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

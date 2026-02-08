@@ -34,7 +34,7 @@ public class InteractablePurchasable : MonoBehaviour
     
     [Header("=== CONFIGURACIÓN INTERACCIÓN ===")]
     [Tooltip("Distancia máxima para interactuar")]
-    public float interactionDistance = 3f;
+    public float interactionDistance = 1000f;
     public KeyCode interactKey = KeyCode.E;
     
     [Header("=== TIPO DE ANIMACIÓN ===")]
@@ -200,6 +200,16 @@ public class InteractablePurchasable : MonoBehaviour
         bool isLooking = false;
         
         Debug.DrawRay(ray.origin, ray.direction * interactionDistance, Color.red);
+        Debug.Log($"[DEBUG RAYCAST] Raycast lanzado, distancia: {interactionDistance}");
+        
+        if (Physics.Raycast(ray, out hit, interactionDistance))
+        {
+            Debug.Log($"[Raycast] Golpeó ALGO: {hit.transform.name}");
+        }
+        else
+        {
+            Debug.Log($"[Raycast] NO golpeó nada");
+        }
         
         if (Physics.Raycast(ray, out hit, interactionDistance))
         {
