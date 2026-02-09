@@ -45,10 +45,26 @@ public class FPSWeaponController : MonoBehaviour
     public float tracerDuration = 0.05f; // Duración del tracer
     public bool usePhysicalBullets = false; // Usar proyectiles físicos
     
+    [Header("Retroceso (Recoil)")]
+    [Tooltip("Cuánto se mueve el arma hacia atrás al disparar")]
+    public float recoilPositionAmount = 0.12f;
+    [Tooltip("Cuánto rota el arma hacia arriba al disparar")]
+    public float recoilRotationAmount = 8f;
+    [Tooltip("Velocidad de retroceso")]
+    public float recoilSpeed = 15f;
+    [Tooltip("Velocidad de recuperación del retroceso")]
+    public float recoilRecoverySpeed = 6f;
+    
     // Estados
     private float nextTimeToFire = 0f;
     private bool isReloading = false;
     private bool isDrawing = false;
+    
+    // Para retroceso
+    private Vector3 currentRecoilPosition;
+    private Vector3 targetRecoilPosition;
+    private Vector3 currentRecoilRotation;
+    private Vector3 targetRecoilRotation;
     
     // Para animación procedural de Draw/Holster
     private Vector3 originalLocalPosition;
@@ -74,6 +90,14 @@ public class FPSWeaponController : MonoBehaviour
         isReloading = false;
         nextTimeToFire = 0f;
         
+        // Guardar posición original para el retroceso
+        if (!hasStoredOriginalTransform)
+        {
+            originalLocalPosition = transform.localPosition;
+            originalLocalRotation = transform.localRotation;
+            hasStoredOriginalTransform = true;
+        }
+        
         if (animator == null)
             animator = GetComponent<Animator>();
         
@@ -90,6 +114,9 @@ public class FPSWeaponController : MonoBehaviour
     
     void Update()
     {
+        // Aplicar retroceso visual
+        ApplyRecoil();
+        
         // No hacer nada si estamos recargando o sacando el arma
         if (isReloading || isDrawing)
             return;
@@ -130,6 +157,9 @@ public class FPSWeaponController : MonoBehaviour
     {
         currentAmmo--;
         
+        // APLICAR RETROCESO
+        AddRecoil();
+        
         // Animación de disparo (solo si tiene animación de disparo)
         if (animator != null && hasFireAnimation)
         {
@@ -158,6 +188,28 @@ public class FPSWeaponController : MonoBehaviour
         {
             ShootRaycast();
         }
+    }
+    
+    void AddRecoil()
+    {
+        // Añadir retroceso hacia atrás (Z negativo) y hacia arriba (rotación X negativa)
+        targetRecoilPosition += new Vector3(0, 0, -recoilPositionAmount);
+        targetRecoilRotation += new Vector3(-recoilRotationAmount, Random.Range(-1f, 1f), 0);
+    }
+    
+    void ApplyRecoil()
+    {
+        // Mover hacia el objetivo del retroceso
+        currentRecoilPosition = Vector3.Lerp(currentRecoilPosition, targetRecoilPosition, Time.deltaTime * recoilSpeed);
+        currentRecoilRotation = Vector3.Lerp(currentRecoilRotation, targetRecoilRotation, Time.deltaTime * recoilSpeed);
+        
+        // Recuperar hacia la posición original
+        targetRecoilPosition = Vector3.Lerp(targetRecoilPosition, Vector3.zero, Time.deltaTime * recoilRecoverySpeed);
+        targetRecoilRotation = Vector3.Lerp(targetRecoilRotation, Vector3.zero, Time.deltaTime * recoilRecoverySpeed);
+        
+        // Aplicar al transform
+        transform.localPosition = originalLocalPosition + currentRecoilPosition;
+        transform.localRotation = originalLocalRotation * Quaternion.Euler(currentRecoilRotation);
     }
     
     void ShootProjectile()

@@ -272,7 +272,15 @@ public class TimsDoorSimple : MonoBehaviour
     {
         if (clip != null && audioSource != null)
         {
-            audioSource.PlayOneShot(clip);
+            audioSource.volume = 1f;  // Asegurar volumen máximo
+            audioSource.spatialBlend = 0.5f;  // Mezcla 2D/3D para que se escuche mejor
+            audioSource.PlayOneShot(clip, 1f);
+            Debug.Log("[TimsDoorSimple] Reproduciendo sonido: " + clip.name);
+        }
+        else
+        {
+            if (clip == null) Debug.LogWarning("[TimsDoorSimple] AudioClip es NULL!");
+            if (audioSource == null) Debug.LogWarning("[TimsDoorSimple] AudioSource es NULL!");
         }
     }
     

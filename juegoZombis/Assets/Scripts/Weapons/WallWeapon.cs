@@ -4,6 +4,7 @@ using TMPro;
 /// <summary>
 /// Arma en la pared que se puede comprar
 /// Coloca este script en un objeto con el arma visible
+/// Muestra mensaje en pantalla al acercarse (estilo cajas)
 /// </summary>
 public class WallWeapon : MonoBehaviour
 {
@@ -19,7 +20,7 @@ public class WallWeapon : MonoBehaviour
     public KeyCode interactKey = KeyCode.E;
     
     [Header("UI")]
-    public TextMeshProUGUI promptText; // Texto que aparece al acercarse
+    public TextMeshProUGUI promptText; // Opcional - si no se asigna usa OnGUI
     public string weaponName = "AK-47";
     
     [Header("Audio")]
@@ -29,7 +30,8 @@ public class WallWeapon : MonoBehaviour
     private Transform player;
     private bool playerInRange = false;
     private AudioSource audioSource;
-    private Canvas worldCanvas;
+    private GUIStyle promptStyle;
+    private GUIStyle shadowStyle;
     
     void Start()
     {
@@ -48,47 +50,22 @@ public class WallWeapon : MonoBehaviour
             audioSource.spatialBlend = 1f; // 3D sound
         }
         
-        // Crear UI si no existe
-        if (promptText == null)
-        {
-            CreateWorldSpaceUI();
-        }
+        // Crear trigger para detectar al jugador
+        SphereCollider triggerCollider = gameObject.AddComponent<SphereCollider>();
+        triggerCollider.isTrigger = true;
+        triggerCollider.radius = interactionRange;
         
-        // Ocultar prompt al inicio
-        if (promptText != null)
-        {
-            promptText.gameObject.SetActive(false);
-        }
-    }
-    
-    void CreateWorldSpaceUI()
-    {
-        // Crear Canvas en World Space
-        GameObject canvasObj = new GameObject("WeaponPromptCanvas");
-        canvasObj.transform.SetParent(transform);
-        canvasObj.transform.localPosition = Vector3.up * 0.5f;
+        // Estilos de texto para OnGUI
+        promptStyle = new GUIStyle();
+        promptStyle.fontSize = 28;
+        promptStyle.fontStyle = FontStyle.Bold;
+        promptStyle.alignment = TextAnchor.MiddleCenter;
+        promptStyle.normal.textColor = Color.white;
+
+        shadowStyle = new GUIStyle(promptStyle);
+        shadowStyle.normal.textColor = Color.black;
         
-        worldCanvas = canvasObj.AddComponent<Canvas>();
-        worldCanvas.renderMode = RenderMode.WorldSpace;
-        
-        // Escalar el canvas
-        canvasObj.transform.localScale = Vector3.one * 0.01f;
-        
-        // Crear texto
-        GameObject textObj = new GameObject("PromptText");
-        textObj.transform.SetParent(canvasObj.transform);
-        textObj.transform.localPosition = Vector3.zero;
-        
-        promptText = textObj.AddComponent<TextMeshProUGUI>();
-        promptText.alignment = TextAlignmentOptions.Center;
-        promptText.fontSize = 36;
-        promptText.color = Color.white;
-        promptText.outlineWidth = 0.2f;
-        promptText.outlineColor = Color.black;
-        
-        // Tamaño del RectTransform
-        RectTransform rt = promptText.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(400, 100);
+        Debug.Log("[WallWeapon] " + weaponName + " lista. Precio: $" + price);
     }
     
     void Update()
@@ -99,24 +76,6 @@ public class WallWeapon : MonoBehaviour
         float distance = Vector3.Distance(transform.position, player.position);
         playerInRange = distance <= interactionRange;
         
-        // Mostrar/ocultar prompt
-        if (promptText != null)
-        {
-            promptText.gameObject.SetActive(playerInRange);
-            
-            if (playerInRange)
-            {
-                UpdatePromptText();
-                
-                // Hacer que el texto mire a la cámara
-                if (worldCanvas != null && Camera.main != null)
-                {
-                    worldCanvas.transform.LookAt(Camera.main.transform);
-                    worldCanvas.transform.Rotate(0, 180, 0);
-                }
-            }
-        }
-        
         // Intentar comprar
         if (playerInRange && Input.GetKeyDown(interactKey))
         {
@@ -124,30 +83,48 @@ public class WallWeapon : MonoBehaviour
         }
     }
     
-    void UpdatePromptText()
+    // DETECCIÓN POR TRIGGER
+    void OnTriggerEnter(Collider other)
     {
-        if (promptText == null) return;
-        
-        bool canAfford = PlayerPoints.Instance != null && 
-                         PlayerPoints.Instance.HasEnoughPoints(price);
-        
-        if (canAfford)
+        if (other.CompareTag("Player"))
         {
-            promptText.text = $"[E] Comprar {weaponName}\n<size=70%>{price} puntos</size>";
-            promptText.color = Color.white;
+            playerInRange = true;
         }
-        else
+    }
+
+    void OnTriggerExit(Collider other)
+    {
+        if (other.CompareTag("Player"))
         {
-            promptText.text = $"{weaponName}\n<size=70%><color=red>{price} puntos</color></size>";
-            promptText.color = new Color(0.7f, 0.7f, 0.7f);
+            playerInRange = false;
         }
+    }
+    
+    // TEXTO EN PANTALLA (estilo cajas)
+    void OnGUI()
+    {
+        if (!playerInRange) return;
+
+        string texto = "Pulsa E - " + weaponName + " ($" + price + ")";
+
+        float x = Screen.width / 2f - 200;
+        float y = Screen.height / 2f + 60;
+
+        // Sombra
+        GUI.color = Color.black;
+        GUI.Label(new Rect(x + 2, y + 2, 400, 50), texto, shadowStyle);
+
+        // Texto
+        GUI.color = Color.cyan; // Color cyan para armas
+        GUI.Label(new Rect(x, y, 400, 50), texto, promptStyle);
     }
     
     void TryPurchase()
     {
-        if (PlayerPoints.Instance == null)
+        // Usar PlayerMoney en vez de PlayerPoints
+        if (PlayerMoney.Instance == null)
         {
-            Debug.LogError("[WallWeapon] No se encontró PlayerPoints!");
+            Debug.LogError("[WallWeapon] No se encontró PlayerMoney!");
             return;
         }
         
@@ -157,11 +134,11 @@ public class WallWeapon : MonoBehaviour
             return;
         }
         
-        // Intentar gastar puntos
-        if (PlayerPoints.Instance.SpendPoints(price))
+        // Intentar gastar dinero
+        if (PlayerMoney.Instance.SpendMoney(price))
         {
             // Compra exitosa
-            Debug.Log($"[WallWeapon] ¡{weaponName} comprada!");
+            Debug.Log("[WallWeapon] ¡" + weaponName + " comprada! -$" + price);
             
             if (purchaseSound != null)
             {
@@ -172,8 +149,8 @@ public class WallWeapon : MonoBehaviour
         }
         else
         {
-            // No hay suficientes puntos
-            Debug.Log($"[WallWeapon] No hay suficientes puntos para {weaponName}");
+            // No hay suficiente dinero
+            Debug.Log("[WallWeapon] No hay suficiente dinero para " + weaponName);
             
             if (noMoneySound != null)
             {
