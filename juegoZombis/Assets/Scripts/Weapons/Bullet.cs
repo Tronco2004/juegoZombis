@@ -27,7 +27,7 @@ public class Bullet : MonoBehaviour
             return;
         
         // Intentar hacer daño al enemigo
-        EnemyHealth enemy = collision.gameObject.GetComponent<EnemyHealth>();
+        EnemyHealth enemy = collision.gameObject.GetComponentInParent<EnemyHealth>();
         if (enemy != null)
         {
             enemy.TakeDamage(damage);

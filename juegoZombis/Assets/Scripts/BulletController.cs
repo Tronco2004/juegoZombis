@@ -19,6 +19,13 @@ public class BulletController : MonoBehaviour
     
     void OnCollisionEnter(Collision collision)
     {
+        // Intentar hacer daño al enemigo
+        EnemyHealth enemy = collision.gameObject.GetComponentInParent<EnemyHealth>();
+        if (enemy != null)
+        {
+            enemy.TakeDamage(speed); // Usa speed como daño base
+        }
+        
         Destroy(gameObject);
     }
 }

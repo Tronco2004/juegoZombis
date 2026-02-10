@@ -2037,6 +2037,7 @@ GameObject:
   - component: {fileID: 4589345678544451547}
   - component: {fileID: 332818141412421777}
   - component: {fileID: -252439886103599727}
+  - component: {fileID: 3091158723413440830}
   m_Layer: 0
   m_Name: ShirtlessZombie_FREE 1
   m_TagString: Untagged
@@ -2071,10 +2072,10 @@ Animator:
   m_GameObject: {fileID: 5968944603220393573}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: e2c1c24aec0aaa94eb4cb7a2aae271a0, type: 3}
-  m_Controller: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 96b9846a67fe7a044aaa1a260be1b0f6, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
-  m_ApplyRootMotion: 1
+  m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_WarningMessage: 
@@ -2171,7 +2172,7 @@ MonoBehaviour:
   deathSound: {fileID: 0}
   hitSound: {fileID: 0}
   useRagdoll: 0
-  animator: {fileID: 0}
+  animator: {fileID: 1062563121848742051}
   ragdollBodies: []
 --- !u!114 &4589345678544451547
 MonoBehaviour:
@@ -2185,7 +2186,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d6058a0d7264104a9494c45d6239f8b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 20
+  speed: 5
   chaseRange: 50
   attackRange: 2
   attackCooldown: 1.5
@@ -2195,10 +2196,12 @@ MonoBehaviour:
   chaseSound: {fileID: 0}
   attackSound: {fileID: 0}
   deathSound: {fileID: 0}
+  screamSound: {fileID: 0}
+  crawlSound: {fileID: 0}
   soundVolume: 0.7
-  animator: {fileID: 0}
-  walkAnimParam: IsWalking
-  attackAnimTrigger: Attack
+  animController: {fileID: 0}
+  crawlSpeed: 1.5
+  crawlAttackRange: 1.5
 --- !u!65 &332818141412421777
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2247,6 +2250,28 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &3091158723413440830
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5968944603220393573}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b32f851c0b5307f4cb2dc9841fa22039, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  animator: {fileID: 0}
+  walkThreshold: 0.1
+  runThreshold: 2.5
+  crawlHealthPercent: 0.25
+  enableCrawlSystem: 1
+  attackVariations: 3
+  randomizeAttacks: 1
+  currentState: 0
+  isCrawling: 0
+  isDead: 0
 --- !u!1 &6115618621623747612
 GameObject:
   m_ObjectHideFlags: 0

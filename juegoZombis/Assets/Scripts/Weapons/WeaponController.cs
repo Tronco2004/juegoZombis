@@ -138,10 +138,12 @@ public class WeaponController : MonoBehaviour
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
         if (Physics.Raycast(ray, out RaycastHit hit, range))
         {
-            // Aquí puedes hacer daño a enemigos
-            // Ejemplo:
-            // Enemy enemy = hit.transform.GetComponent<Enemy>();
-            // if (enemy != null) enemy.TakeDamage(damage);
+            // Hacer daño a enemigos
+            EnemyHealth enemy = hit.transform.GetComponentInParent<EnemyHealth>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(damage);
+            }
 
             // Efecto de impacto
             if (impactEffect != null)

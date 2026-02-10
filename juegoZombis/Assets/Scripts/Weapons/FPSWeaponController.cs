@@ -328,7 +328,7 @@ public class FPSWeaponController : MonoBehaviour
             endPoint = hit.point;
             
             // Intentar hacer daño a enemigos
-            EnemyHealth enemy = hit.transform.GetComponent<EnemyHealth>();
+            EnemyHealth enemy = hit.transform.GetComponentInParent<EnemyHealth>();
             if (enemy != null)
             {
                 enemy.TakeDamage(damage);

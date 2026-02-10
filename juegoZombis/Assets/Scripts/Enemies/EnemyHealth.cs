@@ -28,6 +28,7 @@ public class EnemyHealth : MonoBehaviour
     
     private bool isDead = false;
     private AudioSource audioSource;
+    private ZombieAnimationController animController;
     
     void Start()
     {
@@ -54,6 +55,15 @@ public class EnemyHealth : MonoBehaviour
                 rb.isKinematic = true;
             }
         }
+        
+        // Obtener controlador de animaciones
+        animController = GetComponent<ZombieAnimationController>();
+        
+        // Auto-buscar animator si no está asignado
+        if (animator == null)
+        {
+            animator = GetComponentInChildren<Animator>();
+        }
     }
     
     /// <summary>
@@ -71,6 +81,12 @@ public class EnemyHealth : MonoBehaviour
         if (hitSound != null && audioSource != null)
         {
             audioSource.PlayOneShot(hitSound);
+        }
+        
+        // Verificar crawl (vida baja)
+        if (animController != null)
+        {
+            animController.CheckCrawlState(currentHealth, maxHealth);
         }
         
         // Verificar muerte
@@ -108,6 +124,12 @@ public class EnemyHealth : MonoBehaviour
             Instantiate(deathEffect, transform.position, transform.rotation);
         }
         
+        // Animación de muerte
+        if (animController != null)
+        {
+            animController.PlayDeath();
+        }
+        
         // Ragdoll o destruir
         if (useRagdoll && ragdollBodies != null && ragdollBodies.Length > 0)
         {
@@ -117,8 +139,8 @@ public class EnemyHealth : MonoBehaviour
         }
         else
         {
-            // Destruir inmediatamente
-            Destroy(gameObject, 0.1f);
+            // Destruir después de la animación de muerte (3s para que termine)
+            Destroy(gameObject, 3f);
         }
     }
     
