@@ -61,6 +61,7 @@ public class CuadroElectrico : MonoBehaviour
     private Transform tapa;
     private Transform visagra;
     private Quaternion closedRotation;
+    private Vector3 closedPosition;
     private float currentAngle = 0f;
 
     // Rotación palanca
@@ -106,6 +107,7 @@ public class CuadroElectrico : MonoBehaviour
         }
 
         closedRotation = tapa.localRotation;
+        closedPosition = tapa.localPosition;
 
         // Buscar palanca
         knob = knobOverride;
@@ -183,7 +185,9 @@ public class CuadroElectrico : MonoBehaviour
         float target = isOpen ? openAngle : 0f;
         currentAngle = Mathf.MoveTowards(currentAngle, target, animationSpeed * openAngle * Time.deltaTime);
 
+        // Resetear posición Y rotación antes de aplicar RotateAround
         tapa.localRotation = closedRotation;
+        tapa.localPosition = closedPosition;
         tapa.RotateAround(visagra.position, rotationAxis, currentAngle);
 
         if (Mathf.Approximately(currentAngle, target))
