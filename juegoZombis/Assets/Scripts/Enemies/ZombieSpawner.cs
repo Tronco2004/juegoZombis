@@ -3,12 +3,19 @@ using TMPro;
 
 public class ZombieSpawner : MonoBehaviour
 {
-    [Header("Prefab y Puntos de Spawn")]
+    [Header("Prefab")]
     public GameObject zombiePrefab;
-    public Transform[] spawnPoints;
+
+    [Header("Zona de Spawn (delimitable desde el Editor)")]
+    [Tooltip("Tamaño de la zona rectangular de spawn (ancho X, alto Y, profundidad Z)")]
+    public Vector3 spawnZoneSize = new Vector3(20f, 0f, 20f);
+    [Tooltip("Desplazamiento del centro de la zona respecto al transform del spawner")]
+    public Vector3 spawnZoneOffset = Vector3.zero;
+    [Tooltip("Color del Gizmo de la zona en el editor")]
+    public Color gizmoColor = new Color(1f, 0f, 0f, 0.3f);
 
     [Header("Oleadas")]
-    public int baseZombies = 10; // Oleada 1 = 10 + 1 = 11
+    public int baseZombies = 10;
     public float timeBetweenSpawns = 0.4f;
     public float timeBetweenWaves = 3f;
 
@@ -44,12 +51,6 @@ public class ZombieSpawner : MonoBehaviour
             return;
         }
 
-        if (spawnPoints == null || spawnPoints.Length == 0)
-        {
-            Debug.LogError("[ZombieSpawner] No hay spawnPoints asignados.");
-            return;
-        }
-
         StartCoroutine(SpawnLoop());
     }
 
@@ -76,10 +77,26 @@ public class ZombieSpawner : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Devuelve una posición aleatoria dentro de la zona de spawn definida.
+    /// </summary>
+    Vector3 GetRandomSpawnPosition()
+    {
+        Vector3 center = transform.position + spawnZoneOffset;
+        Vector3 halfSize = spawnZoneSize * 0.5f;
+
+        float x = Random.Range(center.x - halfSize.x, center.x + halfSize.x);
+        float y = center.y + Random.Range(-halfSize.y, halfSize.y);
+        float z = Random.Range(center.z - halfSize.z, center.z + halfSize.z);
+
+        return new Vector3(x, y, z);
+    }
+
     void SpawnZombie()
     {
-        Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-        GameObject zombie = Instantiate(zombiePrefab, spawnPoint.position, spawnPoint.rotation);
+        Vector3 spawnPos = GetRandomSpawnPosition();
+        Quaternion spawnRot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        GameObject zombie = Instantiate(zombiePrefab, spawnPos, spawnRot);
         aliveZombies++;
 
         ZombieWaveMember member = zombie.GetComponent<ZombieWaveMember>();
@@ -143,5 +160,23 @@ public class ZombieSpawner : MonoBehaviour
     public void NotifyZombieDestroyed()
     {
         aliveZombies = Mathf.Max(0, aliveZombies - 1);
+    }
+
+    /// <summary>
+    /// Dibuja la zona de spawn en el editor para que puedas verla y ajustarla.
+    /// </summary>
+    void OnDrawGizmosSelected()
+    {
+        Vector3 center = transform.position + spawnZoneOffset;
+
+        // Cubo semitransparente
+        Gizmos.color = gizmoColor;
+        Gizmos.DrawCube(center, spawnZoneSize);
+
+        // Borde del cubo
+        Color wireColor = gizmoColor;
+        wireColor.a = 1f;
+        Gizmos.color = wireColor;
+        Gizmos.DrawWireCube(center, spawnZoneSize);
     }
 }
