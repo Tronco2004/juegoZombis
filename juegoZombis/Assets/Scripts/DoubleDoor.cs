@@ -29,6 +29,10 @@ public class DoubleDoor : MonoBehaviour
     [Tooltip("Invertir la dirección de apertura")]
     public bool invertOpenDirection = false;
     
+    [Header("=== EJE DE ROTACIÓN (Visagras) ===")]
+    [Tooltip("Eje sobre el que rotan las puertas cuando usan visagras. Por defecto Y (0,1,0) = giro horizontal. Prueba (1,0,0) si gira mal.")]
+    public Vector3 hingeAxis = Vector3.up;
+    
     [Header("=== PRECIO (Opcional) ===")]
     [Tooltip("Precio para abrir (0 = gratis)")]
     public int price = 0;
@@ -50,6 +54,12 @@ public class DoubleDoor : MonoBehaviour
     private Quaternion leftClosedRotation;
     private Quaternion rightClosedRotation;
     
+    // Visagras (puntos de bisagra)
+    private Transform leftVisagra;
+    private Transform rightVisagra;
+    private Vector3 leftClosedPos;
+    private Vector3 rightClosedPos;
+    
     private AudioSource audioSource;
     private GUIStyle promptStyle;
     private GUIStyle shadowStyle;
@@ -58,9 +68,23 @@ public class DoubleDoor : MonoBehaviour
     {
         // Guardar rotaciones cerradas
         if (leftDoor != null)
+        {
             leftClosedRotation = leftDoor.localRotation;
+            leftClosedPos = leftDoor.position;
+            // Buscar visagra dentro de la puerta izquierda
+            leftVisagra = FindVisagra(leftDoor, "visagraL");
+            if (leftVisagra != null)
+                Debug.Log("[DoubleDoor] Visagra izquierda encontrada: " + leftVisagra.name);
+        }
         if (rightDoor != null)
+        {
             rightClosedRotation = rightDoor.localRotation;
+            rightClosedPos = rightDoor.position;
+            // Buscar visagra dentro de la puerta derecha
+            rightVisagra = FindVisagra(rightDoor, "visagraR");
+            if (rightVisagra != null)
+                Debug.Log("[DoubleDoor] Visagra derecha encontrada: " + rightVisagra.name);
+        }
         
         // Buscar jugador
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
@@ -104,7 +128,35 @@ public class DoubleDoor : MonoBehaviour
         shadowStyle = new GUIStyle(promptStyle);
         shadowStyle.normal.textColor = Color.black;
         
-        Debug.Log("[DoubleDoor] Puertas dobles configuradas. Left: " + (leftDoor != null) + " | Right: " + (rightDoor != null));
+        Debug.Log("[DoubleDoor] Puertas dobles configuradas. Left: " + (leftDoor != null) + " | Right: " + (rightDoor != null)
+            + " | VisagraL: " + (leftVisagra != null) + " | VisagraR: " + (rightVisagra != null));
+    }
+
+    /// <summary>
+    /// Busca una visagra por nombre dentro de una puerta (recursivo)
+    /// </summary>
+    private Transform FindVisagra(Transform door, string preferredName)
+    {
+        // Buscar por nombre exacto
+        foreach (Transform child in door)
+        {
+            if (child.name.Equals(preferredName, System.StringComparison.OrdinalIgnoreCase))
+                return child;
+        }
+        // Buscar conteniendo "visagra" o "bisagra"
+        foreach (Transform child in door)
+        {
+            string lower = child.name.ToLower();
+            if (lower.Contains("visagra") || lower.Contains("bisagra") || lower.Contains("visabra"))
+                return child;
+        }
+        // Buscar recursivo
+        foreach (Transform child in door)
+        {
+            Transform found = FindVisagra(child, preferredName);
+            if (found != null) return found;
+        }
+        return null;
     }
 
     void Update()
@@ -179,6 +231,20 @@ public class DoubleDoor : MonoBehaviour
         StartCoroutine(AnimateDoors(!isOpen));
     }
     
+    /// <summary>
+    /// Fuerza la apertura de las puertas desde un script externo (ej: CuadroElectrico)
+    /// </summary>
+    public void ForceOpen()
+    {
+        if (!isOpen && !isAnimating)
+        {
+            isPurchased = true; // Saltarse el precio
+            isLocked = false;   // Desbloquear si estaba bloqueada
+            StartCoroutine(AnimateDoors(true));
+            Debug.Log("[DoubleDoor] Puertas abiertas forzosamente (externo)");
+        }
+    }
+
     /// <summary>
     /// Fuerza el cierre de las puertas (usado por TrapHouseTrigger)
     /// </summary>
@@ -256,30 +322,96 @@ public class DoubleDoor : MonoBehaviour
         // Sonido
         PlaySound(opening ? openSound : closeSound);
         
-        // Guardar rotaciones iniciales
-        Quaternion leftStart = leftDoor != null ? leftDoor.localRotation : Quaternion.identity;
-        Quaternion rightStart = rightDoor != null ? rightDoor.localRotation : Quaternion.identity;
+        // Sonido
+        // (ya se reprodujo arriba)
+        
+        // Si hay visagras, usar RotateAround; si no, usar localRotation clásica
+        bool useVisagras = (leftVisagra != null || rightVisagra != null);
         
         float elapsed = 0f;
         float duration = 1f / openSpeed;
+        float leftAngleAccum = 0f;
+        float rightAngleAccum = 0f;
+        float leftTargetAngle = opening ? -openAngle * direction : 0f;
+        float rightTargetAngle = opening ? openAngle * direction : 0f;
+        
+        // Para el modo clásico (sin visagras)
+        Quaternion leftStart = leftDoor != null ? leftDoor.localRotation : Quaternion.identity;
+        Quaternion rightStart = rightDoor != null ? rightDoor.localRotation : Quaternion.identity;
+        
+        // Resetear posición/rotación al cerrar con visagras
+        if (!opening && useVisagras)
+        {
+            // Guardar ángulos actuales para interpolar a 0
+            leftAngleAccum = 0f; // Se calculará con t
+            rightAngleAccum = 0f;
+        }
+        
+        // Guardar estado previo para RotateAround incremental
+        float prevT = 0f;
         
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = Mathf.SmoothStep(0, 1, elapsed / duration);
             
-            // Animar ambas puertas
-            if (leftDoor != null)
-                leftDoor.localRotation = Quaternion.Slerp(leftStart, leftTarget, t);
-            if (rightDoor != null)
-                rightDoor.localRotation = Quaternion.Slerp(rightStart, rightTarget, t);
+            if (useVisagras)
+            {
+                // RotateAround incremental: rotar solo el delta desde el frame anterior
+                float deltaT = t - prevT;
+                
+                if (leftDoor != null && leftVisagra != null)
+                {
+                    leftDoor.RotateAround(leftVisagra.position, hingeAxis, opening ? leftTargetAngle * deltaT : -leftTargetAngle * deltaT);
+                }
+                else if (leftDoor != null)
+                {
+                    leftDoor.localRotation = Quaternion.Slerp(leftStart, leftTarget, t);
+                }
+                
+                if (rightDoor != null && rightVisagra != null)
+                {
+                    rightDoor.RotateAround(rightVisagra.position, hingeAxis, opening ? rightTargetAngle * deltaT : -rightTargetAngle * deltaT);
+                }
+                else if (rightDoor != null)
+                {
+                    rightDoor.localRotation = Quaternion.Slerp(rightStart, rightTarget, t);
+                }
+                
+                prevT = t;
+            }
+            else
+            {
+                // Modo clásico sin visagras
+                if (leftDoor != null)
+                    leftDoor.localRotation = Quaternion.Slerp(leftStart, leftTarget, t);
+                if (rightDoor != null)
+                    rightDoor.localRotation = Quaternion.Slerp(rightStart, rightTarget, t);
+            }
             
             yield return null;
         }
         
-        // Asegurar rotación final
-        if (leftDoor != null) leftDoor.localRotation = leftTarget;
-        if (rightDoor != null) rightDoor.localRotation = rightTarget;
+        // Asegurar posición/rotación final
+        if (!useVisagras)
+        {
+            if (leftDoor != null) leftDoor.localRotation = leftTarget;
+            if (rightDoor != null) rightDoor.localRotation = rightTarget;
+        }
+        else if (!opening)
+        {
+            // Al cerrar, asegurar que vuelven a la posición original exacta
+            if (leftDoor != null)
+            {
+                leftDoor.localRotation = leftClosedRotation;
+                leftDoor.position = leftClosedPos;
+            }
+            if (rightDoor != null)
+            {
+                rightDoor.localRotation = rightClosedRotation;
+                rightDoor.position = rightClosedPos;
+            }
+        }
         
         isOpen = opening;
         isAnimating = false;
