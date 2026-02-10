@@ -1,5 +1,67 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &4753642010374656701
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6259013832761275841}
+  m_Layer: 0
+  m_Name: FirePoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6259013832761275841
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4753642010374656701}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0.013, y: 0.135, z: 0.773}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6736785555838172240}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &7256511329617091829
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 6681960046384534341}
+  m_Layer: 0
+  m_Name: ShellPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &6681960046384534341
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7256511329617091829}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: 0.25765464, w: 0.96623707}
+  m_LocalPosition: {x: 0.0162, y: 0.1462, z: 0.136}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6736785555838172240}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 29.862}
 --- !u!1001 &6554821824260742075
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -70,7 +132,13 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: fe26da4fe464908428c500776f8cb591, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      insertIndex: 0
+      addedObject: {fileID: 6681960046384534341}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      insertIndex: 1
+      addedObject: {fileID: 6259013832761275841}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
       insertIndex: -1
@@ -97,7 +165,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 2465810675185367291}
-  firePoint: {fileID: 0}
+  firePoint: {fileID: 6259013832761275841}
   muzzleFlash: {fileID: 0}
   audioSource: {fileID: 0}
   playerCamera: {fileID: 0}
@@ -114,16 +182,26 @@ MonoBehaviour:
   drawTime: 0.35
   holsterTime: 0.25
   useProceduralReload: 0
-  fireSound: {fileID: 0}
-  reloadSound: {fileID: 0}
+  fireSound: {fileID: 8300000, guid: 079668294acfd414fa995497809b9a4e, type: 3}
+  reloadSound: {fileID: 8300000, guid: d54500eb75d0d884dbcb15b4129a8fcc, type: 3}
   emptySound: {fileID: 0}
-  drawSound: {fileID: 0}
+  drawSound: {fileID: 8300000, guid: f562e5f7141acff4b89969478f17aef0, type: 3}
   holsterSound: {fileID: 0}
   impactEffect: {fileID: 0}
-  bulletPrefab: {fileID: 0}
   bulletTracer: {fileID: 0}
   tracerDuration: 0.05
-  usePhysicalBullets: 0
+  usePhysicalBullets: 1
+  bulletPrefab: {fileID: 8439340779992261130, guid: 7d74e9f9b979f0441b93148abd999c2e, type: 3}
+  bulletSpeed: 50
+  shellPrefab: {fileID: 8439340779992261130, guid: 7d74e9f9b979f0441b93148abd999c2e, type: 3}
+  shellEjectionPoint: {fileID: 6681960046384534341}
+  shellEjectionForce: 1
+  shellRotationForce: 5
+  shellLifetime: 5
+  recoilPositionAmount: 0.12
+  recoilRotationAmount: 8
+  recoilSpeed: 15
+  recoilRecoverySpeed: 6
 --- !u!95 &2465810675185367291
 Animator:
   serializedVersion: 5
@@ -145,3 +223,8 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!4 &6736785555838172240 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+  m_PrefabInstance: {fileID: 6554821824260742075}
+  m_PrefabAsset: {fileID: 0}

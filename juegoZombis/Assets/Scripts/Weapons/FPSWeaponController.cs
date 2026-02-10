@@ -40,10 +40,28 @@ public class FPSWeaponController : MonoBehaviour
     
     [Header("Efectos")]
     public GameObject impactEffect;
-    public GameObject bulletPrefab; // Prefab del proyectil
     public LineRenderer bulletTracer; // Línea visual del disparo (opcional)
     public float tracerDuration = 0.05f; // Duración del tracer
-    public bool usePhysicalBullets = false; // Usar proyectiles físicos
+    
+    [Header("Proyectil (Bala que sale disparada)")]
+    [Tooltip("Activar para disparar balas físicas en vez de raycast")]
+    public bool usePhysicalBullets = false;
+    [Tooltip("Prefab de la bala que sale disparada hacia adelante")]
+    public GameObject bulletPrefab;
+    [Tooltip("Velocidad de la bala")]
+    public float bulletSpeed = 50f;
+    
+    [Header("Casquillos (Shell Ejection)")]
+    [Tooltip("Prefab del casquillo/bala que se expulsa hacia la derecha")]
+    public GameObject shellPrefab;
+    [Tooltip("Punto desde donde salen los casquillos (lado derecho del arma)")]
+    public Transform shellEjectionPoint;
+    [Tooltip("Fuerza de expulsión del casquillo")]
+    public float shellEjectionForce = 3f;
+    [Tooltip("Fuerza de rotación del casquillo")]
+    public float shellRotationForce = 10f;
+    [Tooltip("Tiempo antes de destruir el casquillo (segundos)")]
+    public float shellLifetime = 5f;
     
     [Header("Retroceso (Recoil)")]
     [Tooltip("Cuánto se mueve el arma hacia atrás al disparar")]
@@ -101,6 +119,19 @@ public class FPSWeaponController : MonoBehaviour
         if (animator == null)
             animator = GetComponent<Animator>();
         
+        // Crear AudioSource si no existe
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null)
+            {
+                audioSource = gameObject.AddComponent<AudioSource>();
+                audioSource.playOnAwake = false;
+                audioSource.spatialBlend = 0f; // 2D para que siempre se escuche
+                Debug.Log("[FPSWeaponController] AudioSource creado para " + weaponName);
+            }
+        }
+        
         // Buscar la cámara si no está asignada
         if (playerCamera == null)
         {
@@ -109,7 +140,7 @@ public class FPSWeaponController : MonoBehaviour
                 playerCamera = Camera.main;
         }
         
-        Debug.Log("Arma iniciada. Munición: " + currentAmmo + "/" + maxAmmo);
+        Debug.Log("Arma iniciada: " + weaponName + " | Munición: " + currentAmmo + "/" + maxAmmo);
     }
     
     void Update()
@@ -131,8 +162,12 @@ public class FPSWeaponController : MonoBehaviour
             return;
         }
         
-        // Disparo con click izquierdo (automático o semi-automático)
-        bool shootInput = isAutomatic ? Input.GetButton("Fire1") : Input.GetButtonDown("Fire1");
+        // Disparo SOLO con click izquierdo del ratón (NO con Control)
+        bool shootInput;
+        if (isAutomatic)
+            shootInput = Input.GetMouseButton(0); // Click izquierdo mantenido
+        else
+            shootInput = Input.GetMouseButtonDown(0); // Click izquierdo pulsado
         
         if (shootInput && Time.time >= nextTimeToFire)
         {
@@ -141,7 +176,7 @@ public class FPSWeaponController : MonoBehaviour
                 nextTimeToFire = Time.time + fireRate;
                 Shoot();
             }
-            else if (Input.GetButtonDown("Fire1"))
+            else if (Input.GetMouseButtonDown(0))
             {
                 // Sin munición
                 PlaySound(emptySound);
@@ -159,6 +194,9 @@ public class FPSWeaponController : MonoBehaviour
         
         // APLICAR RETROCESO
         AddRecoil();
+        
+        // EXPULSAR CASQUILLO
+        EjectShell();
         
         // Animación de disparo (solo si tiene animación de disparo)
         if (animator != null && hasFireAnimation)
@@ -197,6 +235,44 @@ public class FPSWeaponController : MonoBehaviour
         targetRecoilRotation += new Vector3(-recoilRotationAmount, Random.Range(-1f, 1f), 0);
     }
     
+    /// <summary>
+    /// Expulsa un casquillo del arma
+    /// </summary>
+    void EjectShell()
+    {
+        if (shellPrefab == null) return;
+        
+        // Punto de expulsión (usar firePoint si no hay punto específico)
+        Transform ejectionPoint = shellEjectionPoint != null ? shellEjectionPoint : firePoint;
+        if (ejectionPoint == null) return;
+        
+        // Crear el casquillo
+        GameObject shell = Instantiate(shellPrefab, ejectionPoint.position, ejectionPoint.rotation);
+        
+        // Añadir física si no tiene Rigidbody
+        Rigidbody rb = shell.GetComponent<Rigidbody>();
+        if (rb == null)
+        {
+            rb = shell.AddComponent<Rigidbody>();
+            rb.mass = 0.01f; // Casquillo ligero
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+        }
+        
+        // Dirección de expulsión (hacia la derecha y un poco hacia arriba)
+        Vector3 ejectionDirection = ejectionPoint.right + ejectionPoint.up * 0.5f;
+        ejectionDirection = ejectionDirection.normalized;
+        
+        // Añadir fuerza de expulsión con algo de variación
+        float randomForce = shellEjectionForce * Random.Range(0.8f, 1.2f);
+        rb.AddForce(ejectionDirection * randomForce, ForceMode.Impulse);
+        
+        // Añadir rotación aleatoria
+        rb.AddTorque(Random.insideUnitSphere * shellRotationForce, ForceMode.Impulse);
+        
+        // Destruir después de un tiempo
+        Destroy(shell, shellLifetime);
+    }
+    
     void ApplyRecoil()
     {
         // Mover hacia el objetivo del retroceso
@@ -214,19 +290,31 @@ public class FPSWeaponController : MonoBehaviour
     
     void ShootProjectile()
     {
+        if (bulletPrefab == null || firePoint == null) return;
+        
         // Calcular dirección hacia donde mira la cámara
         Vector3 shootDirection = playerCamera.transform.forward;
         
         // Crear el proyectil en el punto de disparo
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(shootDirection));
         
-        // Configurar daño
+        // Añadir velocidad a la bala
+        Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
+        if (bulletRb != null)
+        {
+            bulletRb.velocity = shootDirection * bulletSpeed;
+        }
+        
+        // Configurar daño si tiene el script Bullet
         Bullet bulletScript = bullet.GetComponent<Bullet>();
         if (bulletScript != null)
         {
             bulletScript.damage = damage;
             bulletScript.impactEffect = impactEffect;
         }
+        
+        // Destruir la bala después de un tiempo
+        Destroy(bullet, 5f);
     }
     
     void ShootRaycast()
@@ -310,10 +398,24 @@ public class FPSWeaponController : MonoBehaviour
     
     void PlaySound(AudioClip clip)
     {
-        if (audioSource != null && clip != null)
+        if (clip == null)
         {
-            audioSource.PlayOneShot(clip);
+            Debug.LogWarning("[FPSWeaponController] AudioClip es NULL en " + weaponName);
+            return;
         }
+        
+        if (audioSource == null)
+        {
+            // Intentar crear AudioSource de emergencia
+            audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.playOnAwake = false;
+            audioSource.spatialBlend = 0f;
+            Debug.Log("[FPSWeaponController] AudioSource creado de emergencia");
+        }
+        
+        audioSource.volume = 1f;
+        audioSource.PlayOneShot(clip, 1f);
+        Debug.Log("[FPSWeaponController] Reproduciendo: " + clip.name);
     }
     
     void PlayAnimation(string animName)

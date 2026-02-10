@@ -1,5 +1,67 @@
 %YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
+--- !u!1 &577830664709682791
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 3833418602872313415}
+  m_Layer: 0
+  m_Name: FirePoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &3833418602872313415
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 577830664709682791}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.00030517622, y: -0.01651187, z: -0.018476382, w: 0.9996929}
+  m_LocalPosition: {x: -0.019, y: 0.121, z: 0.733}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5839547054158217878}
+  m_LocalEulerAnglesHint: {x: 0, y: -1.893, z: -2.118}
+--- !u!1 &6963368752459192620
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1264562199036286995}
+  m_Layer: 0
+  m_Name: ShellEjectionPoint
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1264562199036286995
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6963368752459192620}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0.0060854843, y: -0.028144341, z: 0.21125117, w: 0.97700757}
+  m_LocalPosition: {x: 0.0125, y: 0.1729, z: 0.2786}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 5839547054158217878}
+  m_LocalEulerAnglesHint: {x: 0, y: -3.3, z: 24.402}
 --- !u!1001 &6233127458891818365
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -102,7 +164,13 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: b635a33689829be4e8531b0af17c500e, type: 3}
+      insertIndex: 0
+      addedObject: {fileID: 3833418602872313415}
+    - targetCorrespondingSourceObject: {fileID: -8679921383154817045, guid: b635a33689829be4e8531b0af17c500e, type: 3}
+      insertIndex: 2
+      addedObject: {fileID: 1264562199036286995}
     m_AddedComponents:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b635a33689829be4e8531b0af17c500e, type: 3}
       insertIndex: -1
@@ -114,6 +182,11 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 8513528481177031827}
   m_SourcePrefab: {fileID: 100100000, guid: b635a33689829be4e8531b0af17c500e, type: 3}
+--- !u!4 &5839547054158217878 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: b635a33689829be4e8531b0af17c500e, type: 3}
+  m_PrefabInstance: {fileID: 6233127458891818365}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &6503740710875289644 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 919132149155446097, guid: b635a33689829be4e8531b0af17c500e, type: 3}
@@ -153,7 +226,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 8499342513069461587}
-  firePoint: {fileID: 0}
+  firePoint: {fileID: 3833418602872313415}
   muzzleFlash: {fileID: 0}
   audioSource: {fileID: 8513528481177031827}
   playerCamera: {fileID: 0}
@@ -176,10 +249,16 @@ MonoBehaviour:
   drawSound: {fileID: 0}
   holsterSound: {fileID: 0}
   impactEffect: {fileID: 0}
-  bulletPrefab: {fileID: 0}
   bulletTracer: {fileID: 0}
   tracerDuration: 0.05
-  usePhysicalBullets: 0
+  usePhysicalBullets: 1
+  bulletPrefab: {fileID: 6973286388132332047, guid: 42adb2383c050014b820f7690e18b3b1, type: 3}
+  bulletSpeed: 45
+  shellPrefab: {fileID: 6973286388132332047, guid: 42adb2383c050014b820f7690e18b3b1, type: 3}
+  shellEjectionPoint: {fileID: 1264562199036286995}
+  shellEjectionForce: 1
+  shellRotationForce: 5
+  shellLifetime: 5
   recoilPositionAmount: 0.05
   recoilRotationAmount: 3
   recoilSpeed: 10
