@@ -1,5 +1,4 @@
 using UnityEngine;
-using TMPro;
 using System.Collections;
 
 /// <summary>
@@ -7,430 +6,237 @@ using System.Collections;
 /// </summary>
 public enum AnimationType
 {
-    Door,       // Rotación (para puertas)
-    MoveUp,     // Movimiento hacia arriba (para vallas)
-    Disappear   // Desaparece al instante
-}
-
-// Variable global para debugging
-public static class DebugHelper
-{
-    public static void LogBold(string message) => Debug.Log($"<b>[INTERACTABLE]</b> {message}");
+    Door,
+    MoveUp,
+    Disappear
 }
 
 /// <summary>
 /// Objeto interactivo comprable (puertas, vallas, etc.)
-/// Presiona E mirando hacia el objeto para comprar acceso
-/// Una vez pagado, se abre/desactiva
+/// Acércate y pulsa E para comprar
 /// </summary>
 public class InteractablePurchasable : MonoBehaviour
 {
-    [Header("=== CONFIGURACIÓN COMPRA ===")]
-    [Tooltip("Precio en dinero para abrir/acceder")]
+    [Header("=== COMPRA ===")]
     public int price = 1000;
-    
-    [Tooltip("Nombre del objeto (para mostrar en UI)")]
-    public string objectName = "Puerta";
-    
-    [Header("=== CONFIGURACIÓN INTERACCIÓN ===")]
-    [Tooltip("Distancia máxima para interactuar")]
-    public float interactionDistance = 1000f;
+    public string objectName = "Valla";
+
+    [Header("=== INTERACCIÓN ===")]
+    public float interactionDistance = 10f;
     public KeyCode interactKey = KeyCode.E;
-    
-    [Header("=== TIPO DE ANIMACIÓN ===")]
-    [Tooltip("Tipo de animación: Door (rotación), MoveUp (mover hacia arriba), Disappear (desaparecer)")]
-    public AnimationType animationType = AnimationType.MoveUp;
-    
-    [Header("=== ANIMACIÓN PUERTA ===")]
-    [Tooltip("Ángulo de rotación para puertas")]
-    public float openAngle = 90f;
-    public bool openTowardsPlayer = true;
-    
-    [Header("=== ANIMACIÓN MOVIMIENTO ===")]
-    [Tooltip("Distancia a mover hacia arriba")]
+
+    [Header("=== ANIMACIÓN ===")]
+    public AnimationType animationType = AnimationType.Disappear;
     public float moveDistance = 5f;
-    
-    [Header("=== CONFIGURACIÓN GENERAL ===")]
+    public float openAngle = 90f;
     public float animationDuration = 0.5f;
-    
+
     [Header("=== AUDIO ===")]
     public AudioClip successSound;
     public AudioClip errorSound;
-    public AudioClip openSound;
-    
-    [Header("=== UI WORLDSPACE ===")]
-    public TextMeshProUGUI promptText;
-    
+
     [Header("=== DEBUG ===")]
     public bool showDebugInfo = true;
-    
-    // Estados
+
     private bool isPurchased = false;
     private bool isAnimating = false;
-    private Camera playerCamera;
+    private bool isNearby = false;
+    private Transform player;
     private AudioSource audioSource;
-    private Canvas worldCanvas;
-    
-    // Rotación para puertas
-    private Quaternion closedRotation;
-    private Quaternion openRotation;
-    
+    private GUIStyle labelStyle;
+
     void Start()
     {
-        Debug.Log($"[InteractablePurchasable] Inicializando: {objectName}");
-        Debug.Log($"[InteractablePurchasable] GameObject: {gameObject.name}, Activo: {gameObject.activeInHierarchy}");
-        
-        // Buscar cámara
-        playerCamera = Camera.main;
-        if (playerCamera == null)
+        Debug.Log($"[VALLA] START: {objectName} en {gameObject.name}");
+
+        // Buscar jugador
+        GameObject playerObj = GameObject.FindGameObjectWithTag("Player");
+        if (playerObj == null)
         {
-            Debug.LogError("[InteractablePurchasable] ¡No se encontró la cámara principal!");
+            // Buscar por componente
+            PlayerMoney pm = FindObjectOfType<PlayerMoney>();
+            if (pm != null) playerObj = pm.gameObject;
+        }
+        if (playerObj == null)
+        {
+            // Buscar por nombre
+            playerObj = GameObject.Find("Player");
+        }
+
+        if (playerObj != null)
+        {
+            player = playerObj.transform;
+            Debug.Log($"[VALLA] Jugador encontrado: {playerObj.name}");
         }
         else
         {
-            Debug.Log("[InteractablePurchasable] Cámara encontrada");
+            Debug.LogError("[VALLA] ERROR: No se encontró al jugador!");
         }
-        
-        // Crear AudioSource
+
+        // Audio
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
             audioSource.spatialBlend = 1f;
             audioSource.playOnAwake = false;
-            Debug.Log("[InteractablePurchasable] AudioSource creado");
         }
-        
-        // Crear UI si no existe
-        if (promptText == null)
-        {
-            Debug.Log("[InteractablePurchasable] Creando UI automática");
-            CreateWorldSpaceUI();
-        }
-        
-        // Ocultar prompt al inicio
-        if (promptText != null)
-        {
-            promptText.gameObject.SetActive(false);
-        }
-        
-        // Guardar rotaciones si es puerta
-        if (animationType == AnimationType.Door)
-        {
-            closedRotation = transform.localRotation;
-            openRotation = closedRotation * Quaternion.Euler(0, openAngle, 0);
-        }
-        
-        // Asegurar que hay colliders
-        SetupColliders();
-        
-        Debug.Log($"[InteractablePurchasable] ¡{objectName} listo! Animation Type: {animationType}");
+
+        // Estilo GUI
+        labelStyle = new GUIStyle();
+        labelStyle.fontSize = 20;
+        labelStyle.normal.textColor = Color.white;
+        labelStyle.wordWrap = true;
     }
-    
-    void SetupColliders()
-    {
-        // Verificar que hay un collider en el objeto o sus hijos
-        Collider col = GetComponent<Collider>();
-        if (col == null)
-        {
-            if (showDebugInfo)
-                Debug.LogWarning($"[InteractablePurchasable] {objectName} no tiene collider, intentando crear uno...");
-            
-            // Buscar mesh para crear collider
-            MeshFilter mf = GetComponent<MeshFilter>();
-            if (mf != null && mf.sharedMesh != null)
-            {
-                MeshCollider mc = gameObject.AddComponent<MeshCollider>();
-                mc.sharedMesh = mf.sharedMesh;
-                Debug.Log($"[InteractablePurchasable] MeshCollider creado en {objectName}");
-            }
-            else
-            {
-                // Crear box collider por defecto
-                BoxCollider bc = gameObject.AddComponent<BoxCollider>();
-                Debug.Log($"[InteractablePurchasable] BoxCollider creado en {objectName}");
-            }
-        }
-    }
-    
-    void CreateWorldSpaceUI()
-    {
-        // Crear Canvas en World Space
-        GameObject canvasObj = new GameObject("PurchasePromptCanvas");
-        canvasObj.transform.SetParent(transform);
-        canvasObj.transform.localPosition = Vector3.up * 0.5f;
-        
-        worldCanvas = canvasObj.AddComponent<Canvas>();
-        worldCanvas.renderMode = RenderMode.WorldSpace;
-        
-        // Escalar el canvas
-        canvasObj.transform.localScale = Vector3.one * 0.01f;
-        
-        // Crear texto
-        GameObject textObj = new GameObject("PromptText");
-        textObj.transform.SetParent(canvasObj.transform);
-        textObj.transform.localPosition = Vector3.zero;
-        
-        promptText = textObj.AddComponent<TextMeshProUGUI>();
-        promptText.alignment = TextAlignmentOptions.Center;
-        promptText.fontSize = 36;
-        promptText.color = Color.white;
-        promptText.outlineWidth = 0.2f;
-        promptText.outlineColor = Color.black;
-        
-        // Tamaño del RectTransform
-        RectTransform rt = promptText.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(400, 100);
-    }
-    
+
     void Update()
     {
-        if (isPurchased) return; // Ya comprado, no mostrar UI
-        
-        if (playerCamera == null)
+        if (isPurchased || isAnimating) return;
+
+        // Si no hay jugador, seguir buscando
+        if (player == null)
         {
-            playerCamera = Camera.main;
-            if (playerCamera == null) return;
+            GameObject p = GameObject.FindGameObjectWithTag("Player");
+            if (p != null) player = p.transform;
+            return;
         }
-        
-        // Raycast desde el centro de la pantalla
-        Ray ray = playerCamera.ScreenPointToRay(new Vector3(Screen.width / 2, Screen.height / 2, 0));
-        RaycastHit hit;
-        
-        bool isLooking = false;
-        
-        Debug.DrawRay(ray.origin, ray.direction * interactionDistance, Color.red);
-        Debug.Log($"[DEBUG RAYCAST] Raycast lanzado, distancia: {interactionDistance}, posición cámara: {ray.origin}");
-        
-        // Raycast ignorando la capa del jugador
-        int layerMask = ~LayerMask.GetMask("Player"); // Ignorar capa "Player"
-        
-        if (Physics.Raycast(ray, out hit, interactionDistance, layerMask, QueryTriggerInteraction.Ignore))
+
+        // Detección SIMPLE: solo distancia
+        float dist = Vector3.Distance(transform.position, player.position);
+        isNearby = dist <= interactionDistance;
+
+        if (isNearby && Input.GetKeyDown(interactKey))
         {
-            Debug.Log($"[Raycast] Golpeó ALGO: {hit.transform.name}, distancia: {hit.distance}");
-        }
-        else
-        {
-            Debug.Log($"[Raycast] NO golpeó nada");
-        }
-        
-        if (Physics.Raycast(ray, out hit, interactionDistance, layerMask, QueryTriggerInteraction.Ignore))
-        {
-            if (showDebugInfo && (hit.transform.name.Contains("Valla") || hit.transform.name.Contains("Puerta")))
-                Debug.Log($"[Raycast] Golpeó: {hit.transform.name}");
-            
-            // Verificar si golpeamos este objeto o cualquier hijo
-            if (IsPartOfThis(hit.transform))
-            {
-                isLooking = true;
-                if (showDebugInfo)
-                    Debug.Log($"[InteractablePurchasable] ¡Mirando {objectName}!");
-            }
-        }
-        
-        // Mostrar/ocultar prompt
-        if (promptText != null)
-        {
-            promptText.gameObject.SetActive(isLooking);
-            
-            if (isLooking)
-            {
-                UpdatePromptText();
-                
-                // Hacer que el texto mire a la cámara
-                if (worldCanvas != null && playerCamera != null)
-                {
-                    worldCanvas.transform.LookAt(playerCamera.transform);
-                    worldCanvas.transform.Rotate(0, 180, 0);
-                }
-                
-                // Intentar comprar
-                if (Input.GetKeyDown(interactKey) && !isAnimating)
-                {
-                    if (showDebugInfo)
-                        Debug.Log($"[InteractablePurchasable] Tecla {interactKey} presionada en {objectName}");
-                    
-                    TryPurchase();
-                }
-            }
+            TryPurchase();
         }
     }
-    
-    bool IsPartOfThis(Transform hitTransform)
-    {
-        Transform current = hitTransform;
-        while (current != null)
-        {
-            if (current == transform)
-                return true;
-            current = current.parent;
-        }
-        return false;
-    }
-    
-    void UpdatePromptText()
-    {
-        if (promptText == null) return;
-        
-        bool canAfford = PlayerMoney.Instance != null && 
-                         PlayerMoney.Instance.HasEnoughMoney(price);
-        
-        if (canAfford)
-        {
-            promptText.text = $"[E] Acceder a {objectName}\n<size=70%>${price}</size>";
-            promptText.color = Color.white;
-        }
-        else
-        {
-            promptText.text = $"{objectName}\n<size=70%><color=red>${price}</color></size>";
-            promptText.color = new Color(0.7f, 0.7f, 0.7f);
-        }
-    }
-    
+
     void TryPurchase()
     {
-        Debug.Log($"[InteractablePurchasable] Intentando comprar {objectName}...");
-        
-        // Verificar dinero
+        Debug.Log($"[VALLA] Intentando comprar {objectName}...");
+
         if (PlayerMoney.Instance == null)
         {
-            Debug.LogError("[InteractablePurchasable] ¡No se encontró PlayerMoney!");
-            PlaySound(errorSound);
+            Debug.LogError("[VALLA] PlayerMoney.Instance es NULL!");
             return;
         }
-        
+
         if (!PlayerMoney.Instance.HasEnoughMoney(price))
         {
-            Debug.Log($"[InteractablePurchasable] No hay suficiente dinero! Tienes: ${PlayerMoney.Instance.currentMoney}, cuesta: ${price}");
-            PlaySound(errorSound);
+            Debug.Log($"[VALLA] Sin dinero! Tienes: {PlayerMoney.Instance.currentMoney}, necesitas: {price}");
+            if (errorSound != null) audioSource.PlayOneShot(errorSound);
             return;
         }
-        
-        // Gastar dinero
+
         if (PlayerMoney.Instance.SpendMoney(price))
         {
-            Debug.Log($"[InteractablePurchasable] ¡{objectName} comprado!");
-            PlaySound(successSound);
+            Debug.Log($"[VALLA] ¡{objectName} COMPRADO! -{price}$");
+            if (successSound != null) audioSource.PlayOneShot(successSound);
             isPurchased = true;
-            
-            // Ocultar prompt
-            if (promptText != null)
+
+            switch (animationType)
             {
-                promptText.gameObject.SetActive(false);
+                case AnimationType.Disappear:
+                    Destroy(gameObject);
+                    break;
+                case AnimationType.MoveUp:
+                    StartCoroutine(MoveUpAndDestroy());
+                    break;
+                case AnimationType.Door:
+                    StartCoroutine(OpenDoor());
+                    break;
             }
-            
-            // Ejecutar la acción (abrir puerta o lo que sea)
-            ExecuteAction();
         }
     }
-    
-    void ExecuteAction()
+
+    IEnumerator MoveUpAndDestroy()
     {
-        Debug.Log($"[InteractablePurchasable] Ejecutando acción: {animationType} en {objectName}");
-        
-        switch (animationType)
-        {
-            case AnimationType.Door:
-                AnimateDoor();
-                break;
-            
-            case AnimationType.MoveUp:
-                StartCoroutine(AnimateMoveUp());
-                break;
-            
-            case AnimationType.Disappear:
-                gameObject.SetActive(false);
-                Debug.Log($"[InteractablePurchasable] {objectName} desactivado");
-                break;
-        }
-    }
-    
-    void AnimateDoor()
-    {
-        // Animar puerta
-        if (openTowardsPlayer && playerCamera != null)
-        {
-            Vector3 toPlayer = playerCamera.transform.position - transform.position;
-            float dot = Vector3.Dot(transform.forward, toPlayer);
-            float angle = dot > 0 ? openAngle : -openAngle;
-            openRotation = closedRotation * Quaternion.Euler(0, angle, 0);
-        }
-        
-        StartCoroutine(AnimateDoorCoroutine());
-    }
-    
-    IEnumerator AnimateMoveUp()
-    {
-        Debug.Log($"[InteractablePurchasable] Iniciando movimiento hacia arriba: {moveDistance}");
-        
         isAnimating = true;
-        float elapsed = 0f;
-        Vector3 startPos = transform.position;
-        Vector3 endPos = startPos + Vector3.up * moveDistance;
-        
-        while (elapsed < animationDuration)
+        Vector3 start = transform.position;
+        Vector3 end = start + Vector3.up * moveDistance;
+        float t = 0f;
+
+        while (t < animationDuration)
         {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / animationDuration);
-            
-            transform.position = Vector3.Lerp(startPos, endPos, t);
-            
+            t += Time.deltaTime;
+            transform.position = Vector3.Lerp(start, end, t / animationDuration);
             yield return null;
         }
-        
-        transform.position = endPos;
-        PlaySound(openSound);
-        isAnimating = false;
-        
-        Debug.Log($"[InteractablePurchasable] Movimiento completado");
+
+        yield return new WaitForSeconds(0.3f);
+        Destroy(gameObject);
     }
-    
-    IEnumerator AnimateDoorCoroutine()
+
+    IEnumerator OpenDoor()
     {
-        Debug.Log($"[InteractablePurchasable] Iniciando rotación de puerta");
-        
         isAnimating = true;
-        float elapsed = 0f;
-        
-        while (elapsed < animationDuration)
+        Quaternion startRot = transform.localRotation;
+        Quaternion endRot = startRot * Quaternion.Euler(0, openAngle, 0);
+        float t = 0f;
+
+        while (t < animationDuration)
         {
-            elapsed += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsed / animationDuration);
-            
-            transform.localRotation = Quaternion.Lerp(closedRotation, openRotation, t);
-            
+            t += Time.deltaTime;
+            transform.localRotation = Quaternion.Lerp(startRot, endRot, t / animationDuration);
             yield return null;
         }
-        
-        transform.localRotation = openRotation;
-        PlaySound(openSound);
+
         isAnimating = false;
-        
-        Debug.Log($"[InteractablePurchasable] Rotación completada");
     }
-    
-    void PlaySound(AudioClip clip)
-    {
-        if (clip != null && audioSource != null)
-        {
-            audioSource.PlayOneShot(clip);
-        }
-        else if (showDebugInfo && clip == null)
-        {
-            Debug.LogWarning($"[InteractablePurchasable] AudioClip no asignado en {objectName}");
-        }
-    }
-    
+
     void OnGUI()
     {
-        if (!showDebugInfo) return;
-        
-        GUI.color = Color.green;
-        GUI.Label(new Rect(10, 10, 400, 200), 
-            $"[DEBUG] {objectName}\n" +
-            $"Comprado: {isPurchased}\n" +
-            $"Animation Type: {animationType}\n" +
-            $"Distancia interacción: {interactionDistance}\n" +
-            $"Precio: ${price}");
+        if (isPurchased) return;
+
+        // === SIEMPRE mostrar debug para diagnosticar ===
+        if (showDebugInfo)
+        {
+            string playerInfo = player != null ? player.name : "NO ENCONTRADO";
+            float dist = player != null ? Vector3.Distance(transform.position, player.position) : -1f;
+            string moneyInfo = PlayerMoney.Instance != null ? PlayerMoney.Instance.currentMoney.ToString() : "NULL";
+
+            GUI.color = Color.green;
+            GUI.Label(new Rect(10, 10, 500, 200),
+                $"=== VALLA DEBUG ===\n" +
+                $"Script activo: SI\n" +
+                $"Player: {playerInfo}\n" +
+                $"Distancia: {dist:F1} / {interactionDistance}\n" +
+                $"Cerca: {isNearby}\n" +
+                $"Dinero: {moneyInfo}\n" +
+                $"Precio: {price}",
+                labelStyle);
+        }
+
+        // === Cartel de compra ===
+        if (isNearby && !isAnimating)
+        {
+            bool canAfford = PlayerMoney.Instance != null &&
+                             PlayerMoney.Instance.HasEnoughMoney(price);
+
+            string texto = canAfford
+                ? $"[E] Comprar {objectName} (${price})"
+                : $"{objectName} (${price}) - SIN DINERO";
+
+            // Estilo del cartel
+            GUIStyle style = new GUIStyle(GUI.skin.box);
+            style.fontSize = 30;
+            style.fontStyle = FontStyle.Bold;
+            style.alignment = TextAnchor.MiddleCenter;
+            style.normal.textColor = canAfford ? Color.yellow : Color.red;
+            style.normal.background = Texture2D.grayTexture;
+
+            float w = 500;
+            float h = 60;
+            float x = (Screen.width - w) / 2f;
+            float y = Screen.height / 2f + 50;
+
+            GUI.Label(new Rect(x, y, w, h), texto, style);
+        }
+    }
+
+    void OnDrawGizmosSelected()
+    {
+        Gizmos.color = Color.cyan;
+        Gizmos.DrawWireSphere(transform.position, interactionDistance);
     }
 }
