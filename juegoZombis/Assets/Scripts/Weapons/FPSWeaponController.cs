@@ -43,12 +43,12 @@ public class FPSWeaponController : MonoBehaviour
     public LineRenderer bulletTracer; // Línea visual del disparo (opcional)
     public float tracerDuration = 0.05f; // Duración del tracer
     
-    [Header("Proyectil (Bala que sale disparada)")]
-    [Tooltip("Activar para disparar balas físicas en vez de raycast")]
+    [Header("Proyectil Visual (Bala decorativa)")]
+    [Tooltip("Activar para ver un modelo de bala volando (el daño siempre es por raycast)")]
     public bool usePhysicalBullets = false;
-    [Tooltip("Prefab de la bala que sale disparada hacia adelante")]
+    [Tooltip("Prefab del modelo 3D de bala que sale volando (solo visual)")]
     public GameObject bulletPrefab;
-    [Tooltip("Velocidad de la bala")]
+    [Tooltip("Velocidad visual de la bala")]
     public float bulletSpeed = 50f;
     
     [Header("Casquillos (Shell Ejection)")]
@@ -217,14 +217,13 @@ public class FPSWeaponController : MonoBehaviour
             return;
         }
         
-        // Usar proyectiles físicos o raycast
+        // Raycast para el daño real (instantáneo y fiable)
+        ShootRaycast();
+        
+        // Lanzar modelo visual de la bala (decorativo, sin colisión)
         if (usePhysicalBullets && bulletPrefab != null && firePoint != null)
         {
-            ShootProjectile();
-        }
-        else
-        {
-            ShootRaycast();
+            SpawnVisualBullet();
         }
     }
     
@@ -288,33 +287,51 @@ public class FPSWeaponController : MonoBehaviour
         transform.localRotation = originalLocalRotation * Quaternion.Euler(currentRecoilRotation);
     }
     
-    void ShootProjectile()
+    /// <summary>
+    /// Lanza un modelo 3D de bala como efecto visual (NO hace daño, solo decorativo).
+    /// El daño real lo maneja ShootRaycast().
+    /// </summary>
+    void SpawnVisualBullet()
     {
         if (bulletPrefab == null || firePoint == null) return;
         
-        // Calcular dirección hacia donde mira la cámara
+        // Dirección hacia donde mira la cámara
         Vector3 shootDirection = playerCamera.transform.forward;
         
-        // Crear el proyectil en el punto de disparo
+        // Crear la bala visual
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(shootDirection));
         
-        // Añadir velocidad a la bala
-        Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
-        if (bulletRb != null)
-        {
-            bulletRb.velocity = shootDirection * bulletSpeed;
-        }
-        
-        // Configurar daño si tiene el script Bullet
+        // Desactivar cualquier script de Bullet que tenga (no queremos doble daño)
         Bullet bulletScript = bullet.GetComponent<Bullet>();
         if (bulletScript != null)
         {
-            bulletScript.damage = damage;
-            bulletScript.impactEffect = impactEffect;
+            Destroy(bulletScript);
+        }
+        BulletController bulletController = bullet.GetComponent<BulletController>();
+        if (bulletController != null)
+        {
+            Destroy(bulletController);
         }
         
-        // Destruir la bala después de un tiempo
-        Destroy(bullet, 5f);
+        // Desactivar colliders (es solo visual, no necesita colisionar)
+        foreach (Collider col in bullet.GetComponentsInChildren<Collider>())
+        {
+            Destroy(col);
+        }
+        
+        // Configurar Rigidbody para vuelo recto sin colisión
+        Rigidbody bulletRb = bullet.GetComponent<Rigidbody>();
+        if (bulletRb == null)
+        {
+            bulletRb = bullet.AddComponent<Rigidbody>();
+        }
+        bulletRb.useGravity = false;
+        bulletRb.isKinematic = false;
+        bulletRb.collisionDetectionMode = CollisionDetectionMode.Discrete;
+        bulletRb.velocity = shootDirection * bulletSpeed;
+        
+        // Destruir después de un tiempo
+        Destroy(bullet, 3f);
     }
     
     void ShootRaycast()

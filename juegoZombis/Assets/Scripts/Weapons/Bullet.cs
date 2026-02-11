@@ -7,14 +7,20 @@ public class Bullet : MonoBehaviour
     public float lifetime = 3f;
     public GameObject impactEffect;
     
+    [HideInInspector]
+    public bool velocitySetExternally = false; // Si ya se configuró la velocidad desde fuera
+    
     private Rigidbody rb;
     
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         
-        if (rb != null)
+        // Solo aplicar velocidad si no fue configurada desde FPSWeaponController
+        if (rb != null && !velocitySetExternally)
         {
+            rb.useGravity = false;
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
             rb.velocity = transform.forward * speed;
         }
         
