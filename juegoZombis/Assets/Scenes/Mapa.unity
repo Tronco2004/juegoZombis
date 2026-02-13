@@ -873,7 +873,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 429.3517
+      value: 423.3
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.y
@@ -881,7 +881,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 52.77032
+      value: 49.2
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalRotation.w
@@ -1715,9 +1715,9 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 37989109}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.00000003567575, y: -0.70557505, z: -0.0000000072774364, w: -0.70863515}
-  m_LocalPosition: {x: -37.644634, y: -2.0400014, z: -10.893593}
-  m_LocalScale: {x: 1.2138005, y: 1, z: 1}
+  m_LocalRotation: {x: 0.00000003567575, y: -0.70557505, z: -0.0000000072774364, w: -0.7086353}
+  m_LocalPosition: {x: -1.544651, y: -2.0400014, z: -3.0236058}
+  m_LocalScale: {x: 1.2138002, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1327700872}
@@ -14219,12 +14219,12 @@ Transform:
   m_GameObject: {fileID: 476077926}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: -36.6, y: 0, z: -7.77}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1841040662}
   - {fileID: 37989110}
+  - {fileID: 1841040662}
   m_Father: {fileID: 1596309036}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &476077929
@@ -14242,14 +14242,8 @@ MonoBehaviour:
   dialogueText: Parece que no se abre la puerta, creo que necesito electricidad,
     probablemente este en la torre que vi a la izquierda del todo.
   displayDuration: 6
-  interactionRange: 2
+  interactionRange: 3
   interactKey: 101
-  showOnlyOnce: 0
-  cooldown: 3
-  doorReference: {fileID: 0}
-  cuadroElectrico: {fileID: 616153357}
-  dialogueSound: {fileID: 0}
-  soundVolume: 0.7
 --- !u!1001 &477199496
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18405,6 +18399,9 @@ MonoBehaviour:
   knobOverride: {fileID: 0}
   puertasDobles:
   - {fileID: 476077927}
+  activationDialogue: "Creo que algo se ha abierto, tendr\xE9 que comprobarlo por
+    si acaso."
+  dialogueDuration: 5
   openSound: {fileID: 0}
   closeSound: {fileID: 0}
   errorSound: {fileID: 0}
@@ -57190,8 +57187,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1841040661}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.0000000070447133, y: -0.7040214, z: 0.000000035722408, w: 0.71017885}
-  m_LocalPosition: {x: -37.48817, y: -2.0400014, z: -4.87018}
+  m_LocalRotation: {x: 0.000000007044714, y: -0.7040214, z: 0.00000003572242, w: 0.71017885}
+  m_LocalPosition: {x: -1.3881874, y: -2.0400014, z: 2.9998107}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
