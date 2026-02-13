@@ -20,15 +20,29 @@ public class EnemyHealth : MonoBehaviour
     public GameObject deathEffect;
     public AudioClip deathSound;
     public AudioClip hitSound;
+    public AudioClip headshotSound;
+    
+    [Header("Headshot")]
+    [Tooltip("Multiplicador de daño en la cabeza")]
+    public float headshotMultiplier = 2.5f;
+    [Tooltip("Nombres de los huesos de la cabeza (para detectar headshot)")]
+    public string[] headBoneNames = new string[] { "Head", "head", "Cabeza", "cabeza", "Bip001 Head", "mixamorig:Head" };
     
     [Header("Ragdoll (Opcional)")]
     public bool useRagdoll = false;
     public Animator animator;
     public Rigidbody[] ragdollBodies;
     
+    [Header("Barra de Vida")]
+    [Tooltip("Mostrar barra de vida sobre el enemigo")]
+    public bool showHealthBar = true;
+    [Tooltip("Altura de la barra sobre el enemigo")]
+    public float healthBarHeight = 2.5f;
+    
     private bool isDead = false;
     private AudioSource audioSource;
     private ZombieAnimationController animController;
+    private EnemyHealthBar healthBar;
     
     void Start()
     {
@@ -64,23 +78,88 @@ public class EnemyHealth : MonoBehaviour
         {
             animator = GetComponentInChildren<Animator>();
         }
+        
+        // Referencia a ZombieAI
+        zombieAI = GetComponent<ZombieAI>();
+        
+        // Crear barra de vida
+        if (showHealthBar)
+        {
+            CreateHealthBar();
+        }
     }
+    
+    void CreateHealthBar()
+    {
+        GameObject healthBarObj = new GameObject("HealthBar_" + gameObject.name);
+        healthBar = healthBarObj.AddComponent<EnemyHealthBar>();
+        healthBar.heightAboveEnemy = healthBarHeight;
+        healthBar.Initialize(transform, this);
+    }
+    
+    private ZombieAI zombieAI;
     
     /// <summary>
     /// Recibir daño
     /// </summary>
     public void TakeDamage(float damage)
     {
+        TakeDamage(damage, transform.position, false);
+    }
+    
+    /// <summary>
+    /// Recibir daño con posición del impacto y detección de headshot
+    /// </summary>
+    public void TakeDamage(float damage, Vector3 hitPoint, bool isHeadshot)
+    {
         if (isDead) return;
         
-        currentHealth -= damage;
+        float finalDamage = damage;
         
-        Debug.Log($"[Zombie] Recibió {damage} daño. Vida: {currentHealth}/{maxHealth}");
-        
-        // Sonido de golpe
-        if (hitSound != null && audioSource != null)
+        // Aplicar multiplicador de headshot
+        if (isHeadshot)
         {
-            audioSource.PlayOneShot(hitSound);
+            finalDamage = damage * headshotMultiplier;
+            Debug.Log($"[Zombie] ¡HEADSHOT! Daño: {finalDamage} (x{headshotMultiplier})");
+            
+            // Sonido de headshot
+            if (headshotSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(headshotSound);
+            }
+            else if (hitSound != null && audioSource != null)
+            {
+                audioSource.pitch = 1.5f; // Pitch más alto para headshot
+                audioSource.PlayOneShot(hitSound);
+                audioSource.pitch = 1f;
+            }
+        }
+        else
+        {
+            // Sonido de golpe normal
+            if (hitSound != null && audioSource != null)
+            {
+                audioSource.PlayOneShot(hitSound);
+            }
+        }
+        
+        currentHealth -= finalDamage;
+        
+        Debug.Log($"[Zombie] Recibió {finalDamage} daño. Vida: {currentHealth}/{maxHealth}");
+        
+        // Mostrar número de daño flotante
+        DamagePopup.Create(hitPoint, finalDamage, isHeadshot);
+        
+        // Notificar a la barra de vida
+        if (healthBar != null)
+        {
+            healthBar.OnDamaged();
+        }
+        
+        // Notificar al ZombieAI para sonido de dolor
+        if (zombieAI != null)
+        {
+            zombieAI.OnTakeDamage();
         }
         
         // Verificar crawl (vida baja)
@@ -94,6 +173,46 @@ public class EnemyHealth : MonoBehaviour
         {
             Die();
         }
+    }
+    
+    /// <summary>
+    /// Verifica si un collider es la cabeza
+    /// </summary>
+    public bool IsHeadshot(Collider hitCollider)
+    {
+        if (hitCollider == null) return false;
+        
+        string colliderName = hitCollider.gameObject.name.ToLower();
+        
+        foreach (string headName in headBoneNames)
+        {
+            if (colliderName.Contains(headName.ToLower()))
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /// <summary>
+    /// Verifica si un transform es la cabeza
+    /// </summary>
+    public bool IsHeadshot(Transform hitTransform)
+    {
+        if (hitTransform == null) return false;
+        
+        string transformName = hitTransform.gameObject.name.ToLower();
+        
+        foreach (string headName in headBoneNames)
+        {
+            if (transformName.Contains(headName.ToLower()))
+            {
+                return true;
+            }
+        }
+        
+        return false;
     }
     
     /// <summary>

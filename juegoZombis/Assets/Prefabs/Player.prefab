@@ -259,6 +259,11 @@ MonoBehaviour:
   maxLookDown: -80
   footstepAudio: {fileID: 0}
   footstepSounds: []
+  crouchKey: 306
+  standingHeight: 2
+  crouchHeight: 1
+  crouchSpeed: 2
+  crouchTransitionSpeed: 10
   maxStamina: 100
   currentStamina: 100
   staminaDrainRate: 15
@@ -292,6 +297,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxHealth: 100
   currentHealth: 0
+  regenDelay: 4
+  regenRate: 15
+  autoRegen: 1
+  damageOverlay: {fileID: 0}
+  bloodVignetteSprite: {fileID: 0}
+  damageFadeSpeed: 1.5
+  maxOverlayAlpha: 0.9
+  damageFlashIntensity: 0.5
+  lowHealthThreshold: 0.3
+  heartbeatSound: {fileID: 8300000, guid: ac6bbbda930273b4d9c97f955f40bccd, type: 3}
+  breathingSound: {fileID: 0}
+  lowHealthVolume: 0.7
+  hurtSounds:
+  - {fileID: 8300000, guid: d140da6e139de5d49afb5bc1d140ed91, type: 3}
+  deathSounds: []
+  pitchVariation: 0.1
   isDead: 0
 --- !u!1001 &6112402880787709936
 PrefabInstance:

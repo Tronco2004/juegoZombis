@@ -23,14 +23,33 @@ public class ZombieAI : MonoBehaviour
     public string playerTag = "Player";
     
     [Header("Sonidos")]
-    public AudioClip idleSound;
-    public AudioClip chaseSound;
-    public AudioClip attackSound;
-    public AudioClip deathSound;
-    public AudioClip screamSound;
-    public AudioClip crawlSound;
+    [Tooltip("Gruñidos aleatorios de ambiente")]
+    public AudioClip[] idleSounds;
+    [Tooltip("Sonidos al perseguir")]
+    public AudioClip[] chaseSounds;
+    [Tooltip("Sonidos de ataque")]
+    public AudioClip[] attackSounds;
+    [Tooltip("Sonidos de muerte")]
+    public AudioClip[] deathSounds;
+    [Tooltip("Grito al detectar al jugador")]
+    public AudioClip[] screamSounds;
+    [Tooltip("Sonidos al arrastrarse")]
+    public AudioClip[] crawlSounds;
+    [Tooltip("Sonidos al recibir daño")]
+    public AudioClip[] hurtSounds;
+    
+    [Header("Configuración de Sonido")]
     [Range(0f, 1f)]
-    public float soundVolume = 0.7f;
+    public float soundVolume = 0.25f; // Volumen bajo
+    [Tooltip("Intervalo entre gruñidos aleatorios (segundos)")]
+    public float groanInterval = 8f; // Más tiempo entre gruñidos
+    [Tooltip("Variación aleatoria del intervalo")]
+    public float groanIntervalVariation = 4f;
+    [Tooltip("Distancia máxima para oír al zombie")]
+    public float maxSoundDistance = 20f;
+    [Tooltip("Probabilidad de hacer ruido (0-1)")]
+    [Range(0f, 1f)]
+    public float groanChance = 0.3f; // Solo 30% de probabilidad de gruñir
     
     [Header("Animaciones (se asigna solo)")]
     public ZombieAnimationController animController;
@@ -55,6 +74,8 @@ public class ZombieAI : MonoBehaviour
     private float originalSpeed;
     private float screamEndTime = 0f;
     private bool isChasing = false; // Intent de perseguir (para animaciones)
+    private float nextGroanTime;
+    private bool wasChasing = false;
     
     void Start()
     {
@@ -66,17 +87,46 @@ public class ZombieAI : MonoBehaviour
         agent.speed = speed;
         originalSpeed = speed;
         
-        // Zombies deben poder apiñarse: desactivar avoidance completamente
-        agent.radius = 0.1f;
-        agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
+        // Configurar NavMeshAgent para evitar que se apilen demasiado
+        agent.radius = 0.4f; // Radio más grande para que no se atraviesen
+        agent.obstacleAvoidanceType = ObstacleAvoidanceType.LowQualityObstacleAvoidance; // Evitar otros zombies
+        agent.avoidancePriority = Random.Range(30, 70); // Prioridad aleatoria para variar comportamiento
         
-        // Configurar audio
+        // Configurar audio - MEJORADO para que se escuche bien
         audioSource = GetComponent<AudioSource>();
         if (audioSource == null)
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
-        audioSource.spatialBlend = 1f; // 3D sound
+        
+        // Configuración de audio 3D mejorada
+        audioSource.spatialBlend = 0.8f; // Mayormente 3D pero con algo de 2D para que se escuche mejor
+        audioSource.maxDistance = maxSoundDistance;
+        audioSource.minDistance = 1f; // Volumen máximo dentro de 1 metro
+        audioSource.rolloffMode = AudioRolloffMode.Linear;
+        audioSource.volume = 1f; // Volumen base máximo
+        audioSource.priority = 50; // Prioridad media-alta
+        audioSource.playOnAwake = false; // No reproducir al inicio
+        audioSource.dopplerLevel = 0f; // Sin efecto doppler
+        audioSource.spread = 180f; // Sonido más amplio
+        
+        // Verificar que hay sonidos asignados
+        int totalSounds = CountValidClips(idleSounds) + CountValidClips(chaseSounds) + 
+                          CountValidClips(attackSounds) + CountValidClips(deathSounds) + 
+                          CountValidClips(screamSounds) + CountValidClips(crawlSounds) + 
+                          CountValidClips(hurtSounds);
+        
+        if (totalSounds == 0)
+        {
+            Debug.LogWarning($"[ZombieAI] {gameObject.name}: ¡No hay sonidos asignados! Asigna AudioClips en el Inspector.");
+        }
+        else
+        {
+            Debug.Log($"[ZombieAI] {gameObject.name}: Sistema de sonidos OK - {totalSounds} clips cargados. Volumen: {soundVolume}");
+        }
+        
+        // Inicializar tiempo del próximo gruñido
+        nextGroanTime = Time.time + Random.Range(1f, groanInterval);
         
         // Buscar al jugador por tag
         FindPlayer();
@@ -184,6 +234,9 @@ public class ZombieAI : MonoBehaviour
         
         // Actualizar animaciones
         UpdateAnimations();
+        
+        // Gruñidos periódicos
+        UpdateAmbientSounds();
     }
     
     /// <summary>
@@ -264,10 +317,11 @@ public class ZombieAI : MonoBehaviour
         
         Debug.Log($"[ZombieAI] ¡Atacando al jugador! Daño: {damage}");
         
-        // Aplicar daño al jugador
+        // Aplicar daño al jugador con indicador direccional
         if (playerHealth != null && !playerHealth.isDead)
         {
-            playerHealth.TakeDamage(damage);
+            // Pasar la posición del zombie para el indicador de daño en el HUD
+            playerHealth.TakeDamage(damage, transform.position);
         }
         
         // Animación de ataque (variada)
@@ -277,7 +331,7 @@ public class ZombieAI : MonoBehaviour
         }
         
         // Sonido de ataque
-        PlaySound(attackSound);
+        PlayRandomSound(attackSounds);
     }
     
     /// <summary>
@@ -290,7 +344,7 @@ public class ZombieAI : MonoBehaviour
             animController.PlayScream();
             screamEndTime = Time.time + 1.5f; // Duración del grito ~1.5s
         }
-        PlaySound(screamSound);
+        PlayRandomSound(screamSounds);
     }
     
     /// <summary>
@@ -302,7 +356,7 @@ public class ZombieAI : MonoBehaviour
         {
             animController.PlayDeath();
         }
-        PlaySound(deathSound);
+        PlayRandomSound(deathSounds);
     }
     
     /// <summary>
@@ -352,6 +406,117 @@ public class ZombieAI : MonoBehaviour
         if (clip != null && audioSource != null)
         {
             audioSource.PlayOneShot(clip, soundVolume);
+        }
+    }
+    
+    /// <summary>
+    /// Cuenta clips válidos en un array
+    /// </summary>
+    int CountValidClips(AudioClip[] clips)
+    {
+        if (clips == null) return 0;
+        int count = 0;
+        foreach (var clip in clips)
+        {
+            if (clip != null) count++;
+        }
+        return count;
+    }
+    
+    /// <summary>
+    /// Reproducir un sonido aleatorio de un array
+    /// </summary>
+    void PlayRandomSound(AudioClip[] clips, float volumeMultiplier = 1f)
+    {
+        if (clips == null || clips.Length == 0)
+        {
+            Debug.LogWarning($"[ZombieAI] {gameObject.name}: Array de sonidos vacío");
+            return;
+        }
+        
+        if (audioSource == null)
+        {
+            Debug.LogWarning($"[ZombieAI] {gameObject.name}: No hay AudioSource");
+            return;
+        }
+        
+        // Filtrar clips nulos
+        System.Collections.Generic.List<AudioClip> validClips = new System.Collections.Generic.List<AudioClip>();
+        foreach (var clip in clips)
+        {
+            if (clip != null)
+            {
+                validClips.Add(clip);
+            }
+        }
+        
+        if (validClips.Count == 0)
+        {
+            Debug.LogWarning($"[ZombieAI] {gameObject.name}: Todos los clips del array son null - asigna sonidos en el Inspector");
+            return;
+        }
+        
+        AudioClip selectedClip = validClips[Random.Range(0, validClips.Count)];
+        float finalVolume = Mathf.Clamp(soundVolume * volumeMultiplier, 0.1f, 1f); // Permitir volumen más bajo
+        
+        // Asegurar que el AudioSource está habilitado y configurado
+        if (!audioSource.enabled)
+        {
+            audioSource.enabled = true;
+        }
+        
+        // Reproducir sonido
+        audioSource.PlayOneShot(selectedClip, finalVolume);
+        Debug.Log($"[ZombieAI] {gameObject.name}: ▶ Reproduciendo '{selectedClip.name}' (vol: {finalVolume:F2})");
+    }
+    
+    /// <summary>
+    /// Actualizar sonidos de ambiente (gruñidos periódicos) - MENOS FRECUENTES
+    /// </summary>
+    void UpdateAmbientSounds()
+    {
+        if (Time.time < nextGroanTime) return;
+        if (audioSource != null && audioSource.isPlaying) return;
+        
+        // Probabilidad de NO hacer ruido
+        if (Random.value > groanChance)
+        {
+            // Programar próximo intento y salir sin hacer ruido
+            float variation = Random.Range(-groanIntervalVariation, groanIntervalVariation);
+            nextGroanTime = Time.time + groanInterval + variation;
+            return;
+        }
+        
+        // Solo reproducir sonidos de persecución ocasionalmente
+        if (isChasing && CountValidClips(chaseSounds) > 0)
+        {
+            PlayRandomSound(chaseSounds, 0.6f); // Volumen más bajo
+        }
+        else if (CountValidClips(idleSounds) > 0)
+        {
+            PlayRandomSound(idleSounds, 0.5f); // Volumen más bajo
+        }
+        
+        // Programar próximo gruñido con más tiempo
+        float nextVariation = Random.Range(-groanIntervalVariation, groanIntervalVariation);
+        nextGroanTime = Time.time + groanInterval + nextVariation;
+    }
+    
+    /// <summary>
+    /// Llamar cuando el zombie recibe daño (desde EnemyHealth)
+    /// </summary>
+    public void OnTakeDamage()
+    {
+        // Sonido de dolor (con baja probabilidad para no saturar)
+        if (Random.value < 0.4f) // Solo 40% de las veces hace ruido al recibir daño
+        {
+            PlayRandomSound(hurtSounds, 0.5f);
+        }
+        
+        // Animación de recibir daño
+        if (animController != null)
+        {
+            animController.PlayHitReaction();
         }
     }
     

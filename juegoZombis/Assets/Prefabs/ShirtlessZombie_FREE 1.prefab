@@ -2171,9 +2171,20 @@ MonoBehaviour:
   deathEffect: {fileID: 0}
   deathSound: {fileID: 0}
   hitSound: {fileID: 0}
+  headshotSound: {fileID: 0}
+  headshotMultiplier: 2.5
+  headBoneNames:
+  - Head
+  - head
+  - Cabeza
+  - cabeza
+  - Bip001 Head
+  - mixamorig:Head
   useRagdoll: 0
   animator: {fileID: 1062563121848742051}
   ragdollBodies: []
+  showHealthBar: 1
+  healthBarHeight: 2.5
 --- !u!114 &4589345678544451547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2186,19 +2197,30 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d6058a0d7264104a9494c45d6239f8b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  speed: 5
+  speed: 2
   chaseRange: 50
   attackRange: 2
   attackCooldown: 1.5
   damage: 20
   playerTag: Player
-  idleSound: {fileID: 0}
-  chaseSound: {fileID: 0}
-  attackSound: {fileID: 0}
-  deathSound: {fileID: 0}
-  screamSound: {fileID: 0}
-  crawlSound: {fileID: 0}
-  soundVolume: 0.7
+  idleSounds:
+  - {fileID: 8300000, guid: 7356a0dd4617cbb42b37e1b92abb47c4, type: 3}
+  chaseSounds:
+  - {fileID: 8300000, guid: 2ebee3161b0a3f142ab5371f15b21a47, type: 3}
+  attackSounds:
+  - {fileID: 8300000, guid: 2ebee3161b0a3f142ab5371f15b21a47, type: 3}
+  deathSounds:
+  - {fileID: 8300000, guid: cb47b0ff1f34b9f4eb84c75339ce4156, type: 3}
+  screamSounds:
+  - {fileID: 8300000, guid: 45c24c2ef424e364e911423a548cd576, type: 3}
+  crawlSounds:
+  - {fileID: 8300000, guid: 23d031e8632e93847bb99434b0c48382, type: 3}
+  hurtSounds:
+  - {fileID: 8300000, guid: 7356a0dd4617cbb42b37e1b92abb47c4, type: 3}
+  soundVolume: 0.322
+  groanInterval: 4
+  groanIntervalVariation: 2
+  maxSoundDistance: 25
   animController: {fileID: 0}
   crawlSpeed: 1.5
   crawlAttackRange: 1.5

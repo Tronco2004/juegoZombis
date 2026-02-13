@@ -60,9 +60,14 @@ public class ZombieAnimationController : MonoBehaviour
     private int hashScream;
     private int hashDie;
     private int hashAttackIndex;
+    private int hashHit; // Para animación de recibir daño
 
     // Flag para evitar repetición del grito
     private bool hasScreamed = false;
+    
+    // Para evitar spam de animación de daño
+    private float lastHitTime = 0f;
+    private const float HIT_ANIM_COOLDOWN = 0.5f;
 
     /// <summary>
     /// Estados posibles del zombie
@@ -113,6 +118,7 @@ public class ZombieAnimationController : MonoBehaviour
         hashScream     = Animator.StringToHash("Scream");
         hashDie        = Animator.StringToHash("Die");
         hashAttackIndex = Animator.StringToHash("AttackIndex");
+        hashHit        = Animator.StringToHash("Hit"); // Trigger para recibir daño
     }
 
     /// <summary>
@@ -255,6 +261,68 @@ public class ZombieAnimationController : MonoBehaviour
         animator.SetTrigger(hashDie);
 
         Debug.Log($"[ZombieAnim] {gameObject.name} animación de muerte");
+    }
+    
+    /// <summary>
+    /// Ejecuta la animación de recibir daño (hit reaction)
+    /// </summary>
+    public void PlayHitReaction()
+    {
+        if (isDead) return;
+        if (animator == null || animator.runtimeAnimatorController == null) return;
+        
+        // Cooldown para evitar spam de animaciones
+        if (Time.time - lastHitTime < HIT_ANIM_COOLDOWN) return;
+        
+        lastHitTime = Time.time;
+        
+        // Intentar activar el trigger de Hit
+        // Si el Animator no tiene este parámetro, usamos CrossFade como alternativa
+        try
+        {
+            animator.SetTrigger(hashHit);
+        }
+        catch
+        {
+            // Si no existe el trigger, intentamos hacer un pequeño "stagger" visual
+            // usando la velocidad temporalmente
+        }
+        
+        // Efecto visual alternativo: pequeño retroceso/tambaleo
+        StartCoroutine(HitStaggerEffect());
+    }
+    
+    /// <summary>
+    /// Coroutine para efecto de tambaleo al recibir daño
+    /// </summary>
+    private System.Collections.IEnumerator HitStaggerEffect()
+    {
+        // Guardar velocidad original
+        float originalSpeed = animator.GetFloat(hashSpeed);
+        
+        // Reducir velocidad brevemente (efecto de stagger)
+        animator.SetFloat(hashSpeed, 0f);
+        
+        // Pequeño movimiento hacia atrás
+        Vector3 knockbackDir = -transform.forward * 0.1f;
+        Vector3 startPos = transform.position;
+        float elapsed = 0f;
+        float duration = 0.15f;
+        
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            // Movimiento de ida y vuelta
+            float offset = Mathf.Sin(t * Mathf.PI) * 0.1f;
+            transform.position = startPos + knockbackDir * offset;
+            yield return null;
+        }
+        
+        transform.position = startPos;
+        
+        // Restaurar velocidad
+        animator.SetFloat(hashSpeed, originalSpeed);
     }
 
     /// <summary>

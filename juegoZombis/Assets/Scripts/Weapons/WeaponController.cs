@@ -133,6 +133,12 @@ public class WeaponController : MonoBehaviour
             muzzleFlash.Play();
 
         PlaySound(shootSound);
+        
+        // Expandir crosshair del HUD
+        if (GameHUD.Instance != null)
+        {
+            GameHUD.Instance.ExpandCrosshair(5f, 0.1f);
+        }
 
         // Raycast para detectar impacto
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));

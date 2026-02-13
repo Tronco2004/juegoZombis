@@ -37,6 +37,9 @@ public class FPSWeaponController : MonoBehaviour
     public AudioClip emptySound;
     public AudioClip drawSound;
     public AudioClip holsterSound;
+    [Range(0f, 1f)]
+    [Tooltip("Volumen de los sonidos del arma")]
+    public float weaponVolume = 0.5f;
     
     [Header("Efectos")]
     public GameObject impactEffect;
@@ -73,6 +76,20 @@ public class FPSWeaponController : MonoBehaviour
     [Tooltip("Velocidad de recuperación del retroceso")]
     public float recoilRecoverySpeed = 6f;
     
+    [Header("Animación de Correr")]
+    [Tooltip("Activar animación procedural de correr")]
+    public bool useRunAnimation = true;
+    [Tooltip("Velocidad de la animación de correr")]
+    public float runAnimSpeed = 8f;
+    [Tooltip("Cantidad de balanceo vertical al correr")]
+    public float runBobAmount = 0.04f;
+    [Tooltip("Cantidad de balanceo horizontal al correr")]
+    public float runSwayAmount = 0.02f;
+    [Tooltip("Inclinación del arma al correr (grados)")]
+    public float runTiltAmount = 10f;
+    [Tooltip("Velocidad de transición a posición de correr")]
+    public float runTransitionSpeed = 8f;
+    
     // Estados
     private float nextTimeToFire = 0f;
     private bool isReloading = false;
@@ -83,6 +100,13 @@ public class FPSWeaponController : MonoBehaviour
     private Vector3 targetRecoilPosition;
     private Vector3 currentRecoilRotation;
     private Vector3 targetRecoilRotation;
+    
+    // Para animación de correr
+    private float runTimer = 0f;
+    private Vector3 runOffset = Vector3.zero;
+    private Vector3 runRotationOffset = Vector3.zero;
+    private float currentRunBlend = 0f;
+    private FirstPersonController playerController;
     
     // Para animación procedural de Draw/Holster
     private Vector3 originalLocalPosition;
@@ -119,6 +143,9 @@ public class FPSWeaponController : MonoBehaviour
         if (animator == null)
             animator = GetComponent<Animator>();
         
+        // Buscar FirstPersonController para detectar si corre
+        playerController = FindObjectOfType<FirstPersonController>();
+        
         // Crear AudioSource si no existe
         if (audioSource == null)
         {
@@ -147,6 +174,12 @@ public class FPSWeaponController : MonoBehaviour
     {
         // Aplicar retroceso visual
         ApplyRecoil();
+        
+        // Aplicar animación de correr
+        if (useRunAnimation)
+        {
+            ApplyRunAnimation();
+        }
         
         // No hacer nada si estamos recargando o sacando el arma
         if (isReloading || isDrawing)
@@ -282,9 +315,58 @@ public class FPSWeaponController : MonoBehaviour
         targetRecoilPosition = Vector3.Lerp(targetRecoilPosition, Vector3.zero, Time.deltaTime * recoilRecoverySpeed);
         targetRecoilRotation = Vector3.Lerp(targetRecoilRotation, Vector3.zero, Time.deltaTime * recoilRecoverySpeed);
         
-        // Aplicar al transform
-        transform.localPosition = originalLocalPosition + currentRecoilPosition;
-        transform.localRotation = originalLocalRotation * Quaternion.Euler(currentRecoilRotation);
+        // Aplicar al transform (el run offset se aplica en ApplyRunAnimation)
+        // Solo aplicamos recoil aquí, run se añade después
+    }
+    
+    /// <summary>
+    /// Aplica animación procedural de correr (balanceo de las manos)
+    /// </summary>
+    void ApplyRunAnimation()
+    {
+        if (playerController == null)
+        {
+            playerController = FindObjectOfType<FirstPersonController>();
+            if (playerController == null) return;
+        }
+        
+        // Determinar si está corriendo
+        bool isRunning = playerController.IsRunning && playerController.IsMoving;
+        
+        // Blend suave hacia estado de correr
+        float targetBlend = isRunning ? 1f : 0f;
+        currentRunBlend = Mathf.Lerp(currentRunBlend, targetBlend, Time.deltaTime * runTransitionSpeed);
+        
+        // Calcular offset de correr
+        if (currentRunBlend > 0.01f)
+        {
+            runTimer += Time.deltaTime * runAnimSpeed;
+            
+            // Movimiento sinusoidal para simular el balanceo al correr
+            float bobY = Mathf.Sin(runTimer * 2f) * runBobAmount;
+            float bobX = Mathf.Cos(runTimer) * runSwayAmount;
+            
+            // Inclinación del arma hacia un lado al correr
+            float tiltZ = Mathf.Sin(runTimer) * 3f;
+            
+            runOffset = new Vector3(bobX, bobY, 0f) * currentRunBlend;
+            runRotationOffset = new Vector3(-runTiltAmount * currentRunBlend, 0f, tiltZ * currentRunBlend);
+        }
+        else
+        {
+            runTimer = 0f;
+            runOffset = Vector3.Lerp(runOffset, Vector3.zero, Time.deltaTime * runTransitionSpeed);
+            runRotationOffset = Vector3.Lerp(runRotationOffset, Vector3.zero, Time.deltaTime * runTransitionSpeed);
+        }
+        
+        // Aplicar TODO al transform: posición original + recoil + run offset
+        Vector3 finalPosition = originalLocalPosition + currentRecoilPosition + runOffset;
+        Quaternion finalRotation = originalLocalRotation 
+            * Quaternion.Euler(currentRecoilRotation) 
+            * Quaternion.Euler(runRotationOffset);
+        
+        transform.localPosition = finalPosition;
+        transform.localRotation = finalRotation;
     }
     
     /// <summary>
@@ -348,7 +430,11 @@ public class FPSWeaponController : MonoBehaviour
             EnemyHealth enemy = hit.transform.GetComponentInParent<EnemyHealth>();
             if (enemy != null)
             {
-                enemy.TakeDamage(damage);
+                // Detectar si es headshot
+                bool isHeadshot = enemy.IsHeadshot(hit.transform) || enemy.IsHeadshot(hit.collider);
+                
+                // Aplicar daño con información del headshot
+                enemy.TakeDamage(damage, hit.point, isHeadshot);
             }
             
             // Efecto de impacto
@@ -430,9 +516,8 @@ public class FPSWeaponController : MonoBehaviour
             Debug.Log("[FPSWeaponController] AudioSource creado de emergencia");
         }
         
-        audioSource.volume = 1f;
-        audioSource.PlayOneShot(clip, 1f);
-        Debug.Log("[FPSWeaponController] Reproduciendo: " + clip.name);
+        audioSource.volume = weaponVolume;
+        audioSource.PlayOneShot(clip, weaponVolume);
     }
     
     void PlayAnimation(string animName)
