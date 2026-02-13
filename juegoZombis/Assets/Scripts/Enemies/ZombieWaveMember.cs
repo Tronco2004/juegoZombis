@@ -3,6 +3,7 @@ using UnityEngine;
 public class ZombieWaveMember : MonoBehaviour
 {
     public ZombieSpawner spawner;
+    public bool isInfiniteZombie = false;
     private bool notified = false;
 
     void OnDestroy()
@@ -12,7 +13,13 @@ public class ZombieWaveMember : MonoBehaviour
 
         if (spawner != null)
         {
-            spawner.NotifyZombieDestroyed();
+            spawner.NotifyZombieDestroyed(isInfiniteZombie);
+
+            ZombieAI ai = GetComponent<ZombieAI>();
+            if (ai != null)
+            {
+                spawner.UnregisterZombie(ai);
+            }
         }
     }
 }

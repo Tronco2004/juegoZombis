@@ -188,9 +188,21 @@ public class ZombieAI : MonoBehaviour
         // Calcular distancia al jugador
         float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
         
-        // Fuera de rango de persecución → no hacer nada
+        // Fuera de rango de persecución → reubicar en el spawn más cercano al jugador
         if (distanceToPlayer > chaseRange)
         {
+            // Intentar reubicar a través del SpawnManager
+            if (ZombieSpawner.Instance != null)
+            {
+                ZombieSpawnPoint closestPoint = ZombieSpawner.Instance.GetClosestSpawnPoint(playerTransform.position);
+                if (closestPoint != null)
+                {
+                    ZombieSpawner.Instance.RelocateZombie(this, closestPoint);
+                    return; // Después de reubicar, salir del Update este frame
+                }
+            }
+
+            // Fallback: si no hay SpawnManager, comportamiento original (parar)
             isChasing = false;
             StopMovement();
             UpdateAnimations();
@@ -520,6 +532,21 @@ public class ZombieAI : MonoBehaviour
         }
     }
     
+    /// <summary>
+    /// Reinicia el estado de detección del zombi.
+    /// Se llama al reubicar al zombi para que vuelva a hacer el grito inicial, etc.
+    /// </summary>
+    public void ResetDetection()
+    {
+        playerDetected = false;
+        isChasing = false;
+        wasChasing = false;
+        screamEndTime = 0f;
+
+        // Parar cualquier movimiento previo y dejar que el próximo Update lo retome
+        StopMovement();
+    }
+
     /// <summary>
     /// Visualizar rangos en el editor
     /// </summary>
