@@ -48,6 +48,9 @@ public class SimonSaysManager : MonoBehaviour
     [Tooltip("Puertas que se abren al completar el puzzle (opcional)")]
     public DoubleDoor[] puertasAlCompletar;
 
+    [Tooltip("Hangares cuya puerta se intercambia al completar el puzzle (opcional)")]
+    public HangarDoorSwap[] hangaresAlCompletar;
+
     [Header("=== DETECCIÓN JUGADOR ===")]
     [Tooltip("Distancia máxima para interactuar con el Simon Says")]
     public float interactionDistance = 8f;
@@ -325,6 +328,15 @@ public class SimonSaysManager : MonoBehaviour
             foreach (DoubleDoor door in puertasAlCompletar)
             {
                 if (door != null) door.ForceOpen();
+            }
+        }
+
+        // Abrir hangares conectados (swap cerrado → abierto)
+        if (hangaresAlCompletar != null)
+        {
+            foreach (HangarDoorSwap hangar in hangaresAlCompletar)
+            {
+                if (hangar != null) hangar.Swap();
             }
         }
 
