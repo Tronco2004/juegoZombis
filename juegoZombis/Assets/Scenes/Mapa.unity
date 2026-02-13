@@ -201,6 +201,37 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!1 &1380836
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1380837}
+  m_Layer: 0
+  m_Name: DialogueManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1380837
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1380836}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 310.723, y: 0.15404892, z: 212.20938}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1431563
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -14146,6 +14177,7 @@ GameObject:
   m_Component:
   - component: {fileID: 476077928}
   - component: {fileID: 476077927}
+  - component: {fileID: 476077929}
   m_Layer: 0
   m_Name: 'PuertasNivel3 '
   m_TagString: Untagged
@@ -14195,6 +14227,29 @@ Transform:
   - {fileID: 37989110}
   m_Father: {fileID: 1596309036}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &476077929
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 476077926}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41f408dcfe61ccf458076686e650baf7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogueText: Parece que no se abre la puerta, creo que necesito electricidad,
+    probablemente este en la torre que vi a la izquierda del todo.
+  displayDuration: 6
+  interactionRange: 2
+  interactKey: 101
+  showOnlyOnce: 0
+  cooldown: 3
+  doorReference: {fileID: 0}
+  cuadroElectrico: {fileID: 616153357}
+  dialogueSound: {fileID: 0}
+  soundVolume: 0.7
 --- !u!1001 &477199496
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -46938,6 +46993,78 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 402812, guid: 3852c07710f30b64c9aea4fdd03eb915, type: 3}
   m_PrefabInstance: {fileID: 1574809846}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1576143841
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1576143844}
+  - component: {fileID: 1576143843}
+  - component: {fileID: 1576143842}
+  m_Layer: 0
+  m_Name: GameObject
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1576143842
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1576143841}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6f7e7c76072e00a4cb8c68c06a628091, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  dialogueText: Tiene que haber alguna forma de pasar a la siguiente parte.
+  displayDuration: 5
+  triggerOnce: 1
+  delay: 0.5
+  dialogueSound: {fileID: 0}
+  soundVolume: 0.8
+--- !u!65 &1576143843
+BoxCollider:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1576143841}
+  m_Material: {fileID: 0}
+  m_IncludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_ExcludeLayers:
+    serializedVersion: 2
+    m_Bits: 0
+  m_LayerOverridePriority: 0
+  m_IsTrigger: 1
+  m_ProvidesContacts: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Size: {x: 1, y: 4.777834, z: 5.192568}
+  m_Center: {x: -0.0000003412766, y: 1.888917, z: 0.5543412}
+--- !u!4 &1576143844
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1576143841}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.09853017, z: -0, w: 0.9951341}
+  m_LocalPosition: {x: 352.569, y: 8.85, z: 227.114}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -11.309, z: 0}
 --- !u!1001 &1579941691
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -66793,3 +66920,5 @@ SceneRoots:
   - {fileID: 1132426379}
   - {fileID: 1132136942}
   - {fileID: 1810185276}
+  - {fileID: 1380837}
+  - {fileID: 1576143844}

@@ -44,6 +44,11 @@ public class CuadroElectrico : MonoBehaviour
     [Tooltip("Arrastra aquí las puertas dobles que se abren al activar la palanca")]
     [SerializeField] private DoubleDoor[] puertasDobles;
 
+    [Header("=== DIÁLOGO AL ACTIVAR ===")]
+    [TextArea(2, 5)]
+    [SerializeField] private string activationDialogue = "Creo que se ha abierto ya, tendré que ir a comprobarlo por si acaso.";
+    [SerializeField] private float dialogueDuration = 5f;
+
     [Header("=== AUDIO ===")]
     [SerializeField] private AudioClip openSound;
     [SerializeField] private AudioClip closeSound;
@@ -210,6 +215,16 @@ public class CuadroElectrico : MonoBehaviour
                     door.ForceOpen();
                 else
                     door.ForceClose();
+            }
+        }
+
+        // Mostrar diálogo al activar la palanca
+        if (activate && !string.IsNullOrEmpty(activationDialogue))
+        {
+            DialogueManager.EnsureExists();
+            if (DialogueManager.Instance != null)
+            {
+                DialogueManager.Instance.ShowDialogue(activationDialogue, dialogueDuration);
             }
         }
     }
