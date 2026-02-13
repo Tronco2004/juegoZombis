@@ -4598,6 +4598,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 442210, guid: 5d4f7bb6ba9a6da4cab8ff0db61e4e59, type: 3}
   m_PrefabInstance: {fileID: 129438624}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &129915197
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 129915199}
+  - component: {fileID: 129915198}
+  m_Layer: 0
+  m_Name: Spawner Mansion
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &129915198
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 129915197}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 614539c007832934ea580a862af29fc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zone: 2
+  spawnZoneSize: {x: 10, y: 0, z: 10}
+  spawnZoneOffset: {x: 0, y: 0, z: 0}
+  activationRange: 60
+  gizmoColor: {r: 0, g: 1, b: 0, a: 0.25}
+  rangeGizmoColor: {r: 1, g: 1, b: 0, a: 0.08}
+--- !u!4 &129915199
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 129915197}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.87456256, z: -0, w: -0.48491275}
+  m_LocalPosition: {x: 331.76, y: 8, z: 228.93}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -238.013, z: 0}
 --- !u!1001 &132362252
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18302,6 +18352,9 @@ MonoBehaviour:
   knobOverride: {fileID: 0}
   puertasDobles:
   - {fileID: 476077927}
+  activationDialogue: "Creo que se ha abierto ya, tendr\xE9 que ir a comprobarlo
+    por si acaso."
+  dialogueDuration: 5
   openSound: {fileID: 0}
   closeSound: {fileID: 0}
   errorSound: {fileID: 0}
@@ -20130,6 +20183,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 442210, guid: 5d4f7bb6ba9a6da4cab8ff0db61e4e59, type: 3}
   m_PrefabInstance: {fileID: 674496693}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &675146866
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 675146868}
+  - component: {fileID: 675146867}
+  m_Layer: 0
+  m_Name: 'Spawner ZONA2 '
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &675146867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 675146866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 614539c007832934ea580a862af29fc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zone: 1
+  spawnZoneSize: {x: 120, y: 0, z: 70}
+  spawnZoneOffset: {x: 0, y: 0, z: 0}
+  activationRange: 60
+  gizmoColor: {r: 0, g: 1, b: 0, a: 0.25}
+  rangeGizmoColor: {r: 1, g: 1, b: 0, a: 0.08}
+--- !u!4 &675146868
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 675146866}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0.15621045, z: -0, w: 0.9877238}
+  m_LocalPosition: {x: 264.4, y: 3.514, z: 218.6}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -17.974, z: 0}
 --- !u!1001 &676344695
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -26434,6 +26537,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 463268, guid: 7b1355ed0671b9f479e96712b7171f9c, type: 3}
   m_PrefabInstance: {fileID: 845928918}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &847261342
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 847261344}
+  - component: {fileID: 847261343}
+  m_Layer: 0
+  m_Name: Spawner ZONA1 (3)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &847261343
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 847261342}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 614539c007832934ea580a862af29fc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zone: 0
+  spawnZoneSize: {x: 60, y: 0, z: 50}
+  spawnZoneOffset: {x: 0, y: 0, z: 0}
+  activationRange: 60
+  gizmoColor: {r: 0, g: 1, b: 0, a: 0.25}
+  rangeGizmoColor: {r: 1, g: 1, b: 0, a: 0.08}
+--- !u!4 &847261344
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 847261342}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 235.8, y: 3.514, z: 57.57}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &847545134
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -26488,6 +26641,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 434308, guid: 944f673b75b562848800fece371cf725, type: 3}
   m_PrefabInstance: {fileID: 847545134}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &850295266
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 850295268}
+  - component: {fileID: 850295267}
+  m_Layer: 0
+  m_Name: Spawner ZONA1 (1)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &850295267
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 850295266}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 614539c007832934ea580a862af29fc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zone: 0
+  spawnZoneSize: {x: 50, y: 0, z: 50}
+  spawnZoneOffset: {x: 0, y: 0, z: 0}
+  activationRange: 60
+  gizmoColor: {r: 0, g: 1, b: 0, a: 0.25}
+  rangeGizmoColor: {r: 1, g: 1, b: 0, a: 0.08}
+--- !u!4 &850295268
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 850295266}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 359.6, y: 3.205, z: 52.275738}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &851159201
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -35152,6 +35355,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 408488, guid: 6dc78eb22702ea84296ffaf6e8826c15, type: 3}
   m_PrefabInstance: {fileID: 1123738145}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1125985828
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1125985830}
+  - component: {fileID: 1125985829}
+  m_Layer: 0
+  m_Name: Spawner ZONA1
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1125985829
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1125985828}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 614539c007832934ea580a862af29fc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zone: 0
+  spawnZoneSize: {x: 50, y: 0, z: 50}
+  spawnZoneOffset: {x: 0, y: 0, z: 0}
+  activationRange: 60
+  gizmoColor: {r: 0, g: 1, b: 0, a: 0.25}
+  rangeGizmoColor: {r: 1, g: 1, b: 0, a: 0.08}
+--- !u!4 &1125985830
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1125985828}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 409.64, y: 3.56, z: 52.275738}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1129391629
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -35730,6 +35983,56 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 423596, guid: 0a252d80add0348439615bc02e74781d, type: 3}
   m_PrefabInstance: {fileID: 1140840668}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1141997014
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1141997016}
+  - component: {fileID: 1141997015}
+  m_Layer: 0
+  m_Name: Spawner ZONA1 (2)
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1141997015
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1141997014}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 614539c007832934ea580a862af29fc0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  zone: 0
+  spawnZoneSize: {x: 50, y: 0, z: 50}
+  spawnZoneOffset: {x: 0, y: 0, z: 0}
+  activationRange: 60
+  gizmoColor: {r: 0, g: 1, b: 0, a: 0.25}
+  rangeGizmoColor: {r: 1, g: 1, b: 0, a: 0.08}
+--- !u!4 &1141997016
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1141997014}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 309.53, y: 2.87, z: 55.04}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1001 &1142161572
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -55685,6 +55988,10 @@ PrefabInstance:
       value: ZombiSpawner
       objectReference: {fileID: 0}
     - target: {fileID: 5166375366199309343, guid: c40d796699278684f997461af8dcd317, type: 3}
+      propertyPath: spawnPoints.Array.size
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5166375366199309343, guid: c40d796699278684f997461af8dcd317, type: 3}
       propertyPath: spawnPoints.Array.data[0]
       value: 
       objectReference: {fileID: 0}
@@ -66366,3 +66673,9 @@ SceneRoots:
   - {fileID: 1132136942}
   - {fileID: 1810185276}
   - {fileID: 35866586}
+  - {fileID: 1125985830}
+  - {fileID: 850295268}
+  - {fileID: 1141997016}
+  - {fileID: 847261344}
+  - {fileID: 129915199}
+  - {fileID: 675146868}
