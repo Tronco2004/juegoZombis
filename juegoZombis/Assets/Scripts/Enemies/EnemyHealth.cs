@@ -29,8 +29,8 @@ public class EnemyHealth : MonoBehaviour
     public string[] headBoneNames = new string[] { "Head", "head", "Cabeza", "cabeza", "Bip001 Head", "mixamorig:Head", "Bip01 Head", "spine.006", "neck", "Neck" };
     [Tooltip("Altura del zombie para detección por posición")]
     public float zombieHeight = 2.0f;
-    [Tooltip("Porcentaje superior del cuerpo que cuenta como cabeza (0.15 = 15% superior)")]
-    public float headHeightPercent = 0.18f;
+    [Tooltip("Porcentaje superior del cuerpo que cuenta como cabeza (0.25 = 25% superior)")]
+    public float headHeightPercent = 0.25f;
     
     [Header("Ragdoll (Opcional)")]
     public bool useRagdoll = false;
@@ -227,18 +227,37 @@ public class EnemyHealth : MonoBehaviour
     
     /// <summary>
     /// Detecta headshot por la posición del impacto (parte superior del zombie)
+    /// Usa los bounds reales del collider para mayor precisión
     /// </summary>
     public bool IsHeadshotByPosition(Vector3 hitPoint)
     {
-        // Calcular la altura del impacto relativa al zombie
-        float zombieBaseY = transform.position.y;
+        // Obtener la altura real del zombie usando el collider
+        Collider col = GetComponent<Collider>();
+        if (col == null) col = GetComponentInChildren<Collider>();
+        
+        float zombieBaseY;
+        float actualHeight;
+        
+        if (col != null)
+        {
+            // Usar los bounds reales del collider
+            zombieBaseY = col.bounds.min.y;
+            actualHeight = col.bounds.size.y;
+        }
+        else
+        {
+            // Fallback al valor configurado
+            zombieBaseY = transform.position.y;
+            actualHeight = zombieHeight;
+        }
+        
         float hitHeight = hitPoint.y - zombieBaseY;
         
         // Si el impacto está en el porcentaje superior del zombie, es headshot
-        float headThreshold = zombieHeight * (1f - headHeightPercent);
+        float headThreshold = actualHeight * (1f - headHeightPercent);
         bool isHead = hitHeight >= headThreshold;
         
-        Debug.Log($"[Headshot Check] HitY: {hitHeight:F2}, Threshold: {headThreshold:F2}, IsHead: {isHead}");
+        Debug.Log($"[Headshot Check] HitY: {hitHeight:F2}, ZombieHeight: {actualHeight:F2}, Threshold: {headThreshold:F2}, IsHead: {isHead}");
         
         return isHead;
     }

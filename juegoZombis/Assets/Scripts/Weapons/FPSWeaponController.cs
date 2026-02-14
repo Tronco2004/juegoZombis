@@ -380,8 +380,9 @@ public class FPSWeaponController : MonoBehaviour
     {
         if (bulletPrefab == null || firePoint == null) return;
         
-        // Dirección hacia donde mira la cámara
-        Vector3 shootDirection = playerCamera.transform.forward;
+        // Dirección desde el centro exacto de la cámara
+        Ray aimRay = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        Vector3 shootDirection = aimRay.direction;
         
         // Crear la bala visual
         GameObject bullet = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(shootDirection));
@@ -424,7 +425,13 @@ public class FPSWeaponController : MonoBehaviour
         RaycastHit hit;
         Vector3 endPoint;
         
-        if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out hit, range))
+        // Rayo desde el centro exacto de la cámara (0.5, 0.5 = centro del viewport)
+        Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+        
+        // Debug visual: línea verde donde va el rayo (visible en Scene view)
+        Debug.DrawRay(ray.origin, ray.direction * range, Color.green, 0.5f);
+        
+        if (Physics.Raycast(ray, out hit, range))
         {
             Debug.Log("Hit: " + hit.transform.name + " | Collider: " + hit.collider.name);
             endPoint = hit.point;
@@ -452,7 +459,7 @@ public class FPSWeaponController : MonoBehaviour
         }
         else
         {
-            endPoint = playerCamera.transform.position + playerCamera.transform.forward * range;
+            endPoint = ray.origin + ray.direction * range;
         }
         
         // Mostrar tracer (línea visual de la bala)

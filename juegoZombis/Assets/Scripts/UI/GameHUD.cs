@@ -569,6 +569,21 @@ public class GameHUD : MonoBehaviour
     }
     
     /// <summary>
+    /// Devuelve la posición en pantalla (píxeles) del centro exacto de la mira.
+    /// FPSWeaponController usa esto para lanzar el raycast justo donde apunta el crosshair.
+    /// </summary>
+    public Vector3 GetCrosshairScreenPosition()
+    {
+        // Si tenemos el crosshair, usar su posición real en pantalla
+        if (crosshairParts != null && crosshairParts[0] != null)
+        {
+            return RectTransformUtility.WorldToScreenPoint(null, crosshairParts[0].position);
+        }
+        // Fallback: centro de la pantalla
+        return new Vector3(Screen.width / 2f, Screen.height / 2f, 0f);
+    }
+
+    /// <summary>
     /// Expandir crosshair al disparar
     /// </summary>
     public void ExpandCrosshair(float amount = 6f, float duration = 0.1f)

@@ -20,7 +20,7 @@ public class EnemyHealthBar : MonoBehaviour
         target = t;
         health = h;
         lastHit = -visibleTime;
-        cam = Camera.main;
+        cam = FindCamera();
         BuildBar();
     }
     void BuildBar()
@@ -53,13 +53,24 @@ public class EnemyHealthBar : MonoBehaviour
         fgRect.anchoredPosition = new Vector2(-(barWidth - 4) / 2f, 0);
         SetVis(false);
     }
+    Camera FindCamera()
+    {
+        Camera c = Camera.main;
+        if (c != null) return c;
+        // Fallback: buscar cualquier cámara activa en la escena
+        Camera[] cams = Camera.allCameras;
+        if (cams.Length > 0) return cams[0];
+        return null;
+    }
+
     void LateUpdate()
     {
         if (target == null || health == null) { Destroy(gameObject); return; }
-        if (cam == null) cam = Camera.main;
+        if (cam == null) cam = FindCamera();
         if (cam == null) return;
         transform.position = target.position + Vector3.up * heightAboveEnemy;
-        transform.forward = cam.transform.forward;
+        // Billboard: siempre mirar hacia la cámara, con up fijo en Vector3.up para evitar flipping
+        transform.rotation = Quaternion.LookRotation(cam.transform.forward, Vector3.up);
         float pct = Mathf.Clamp01(health.currentHealth / health.maxHealth);
         float w = (barWidth - 4) * pct;
         fgRect.sizeDelta = new Vector2(w, barHeight - 4);
