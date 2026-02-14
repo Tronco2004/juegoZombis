@@ -88,6 +88,13 @@ public class FirstPersonController : MonoBehaviour
         // NO modificar la altura ni el centro del controller aquí
         // Dejar que Unity use los valores configurados en el Inspector
 
+        // Cargar sensibilidad guardada
+        float savedSensitivity = PlayerPrefs.GetFloat("MouseSensitivity", -1f);
+        if (savedSensitivity > 0)
+        {
+            mouseSensitivity = savedSensitivity;
+        }
+
         // Bloquear y ocultar el cursor
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
@@ -111,6 +118,9 @@ public class FirstPersonController : MonoBehaviour
 
     void Update()
     {
+        // No procesar input si el juego está pausado
+        if (PauseManager.IsPaused) return;
+        
         HandleMovement();
         HandleCrouch();
         HandleMouseLook();

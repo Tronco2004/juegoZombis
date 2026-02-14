@@ -23,10 +23,14 @@ public class EnemyHealth : MonoBehaviour
     public AudioClip headshotSound;
     
     [Header("Headshot")]
-    [Tooltip("Multiplicador de daño en la cabeza")]
-    public float headshotMultiplier = 2.5f;
+    [Tooltip("Multiplicador de daño en la cabeza (2 = doble daño)")]
+    public float headshotMultiplier = 2f;
     [Tooltip("Nombres de los huesos de la cabeza (para detectar headshot)")]
-    public string[] headBoneNames = new string[] { "Head", "head", "Cabeza", "cabeza", "Bip001 Head", "mixamorig:Head" };
+    public string[] headBoneNames = new string[] { "Head", "head", "Cabeza", "cabeza", "Bip001 Head", "mixamorig:Head", "Bip01 Head", "spine.006", "neck", "Neck" };
+    [Tooltip("Altura del zombie para detección por posición")]
+    public float zombieHeight = 2.0f;
+    [Tooltip("Porcentaje superior del cuerpo que cuenta como cabeza (0.15 = 15% superior)")]
+    public float headHeightPercent = 0.18f;
     
     [Header("Ragdoll (Opcional)")]
     public bool useRagdoll = false;
@@ -113,6 +117,12 @@ public class EnemyHealth : MonoBehaviour
     public void TakeDamage(float damage, Vector3 hitPoint, bool isHeadshot)
     {
         if (isDead) return;
+        
+        // Si no se detectó headshot por nombre de hueso, verificar por posición
+        if (!isHeadshot)
+        {
+            isHeadshot = IsHeadshotByPosition(hitPoint);
+        }
         
         float finalDamage = damage;
         
@@ -213,6 +223,24 @@ public class EnemyHealth : MonoBehaviour
         }
         
         return false;
+    }
+    
+    /// <summary>
+    /// Detecta headshot por la posición del impacto (parte superior del zombie)
+    /// </summary>
+    public bool IsHeadshotByPosition(Vector3 hitPoint)
+    {
+        // Calcular la altura del impacto relativa al zombie
+        float zombieBaseY = transform.position.y;
+        float hitHeight = hitPoint.y - zombieBaseY;
+        
+        // Si el impacto está en el porcentaje superior del zombie, es headshot
+        float headThreshold = zombieHeight * (1f - headHeightPercent);
+        bool isHead = hitHeight >= headThreshold;
+        
+        Debug.Log($"[Headshot Check] HitY: {hitHeight:F2}, Threshold: {headThreshold:F2}, IsHead: {isHead}");
+        
+        return isHead;
     }
     
     /// <summary>

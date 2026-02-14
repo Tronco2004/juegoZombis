@@ -317,27 +317,64 @@ public class GameHUD : MonoBehaviour
     
     void CreateCrosshair()
     {
+        // Nueva mira: Cruz con hueco en el centro para apuntar
+        // 4 líneas que forman una cruz con espacio en el medio
         crosshairParts = new RectTransform[5];
         
-        // Punto central
-        GameObject center = CreatePanel("CrosshairCenter", hudCanvas.transform);
-        Image centerImg = center.AddComponent<Image>();
-        centerImg.color = Color.white;
-        crosshairParts[0] = center.GetComponent<RectTransform>();
+        // Configuración de la mira
+        float lineLength = 14f;    // Longitud de cada línea
+        float lineWidth = 2.5f;    // Grosor de las líneas
+        float gapSize = 6f;        // Hueco central (espacio para apuntar)
+        Color crosshairColor = new Color(1f, 1f, 1f, 0.9f); // Blanco semi-transparente
+        Color outlineColor = new Color(0f, 0f, 0f, 0.5f);   // Borde negro
+        
+        // NO crear punto central (ese es el hueco)
+        // Crear un placeholder invisible
+        GameObject centerPlaceholder = CreatePanel("CrosshairCenter", hudCanvas.transform);
+        crosshairParts[0] = centerPlaceholder.GetComponent<RectTransform>();
         SetAnchor(crosshairParts[0], 0.5f, 0.5f, 0.5f, 0.5f);
-        crosshairParts[0].sizeDelta = new Vector2(4, 4);
-        crosshairParts[0].anchoredPosition = Vector2.zero;
+        crosshairParts[0].sizeDelta = Vector2.zero; // Invisible
         
-        float lineLength = 12f;
-        float lineWidth = 2f;
+        // Crear las 4 líneas de la cruz
+        crosshairParts[1] = CreateCrosshairLineWithOutline("Top", new Vector2(lineWidth, lineLength), crosshairColor, outlineColor);
+        crosshairParts[2] = CreateCrosshairLineWithOutline("Bottom", new Vector2(lineWidth, lineLength), crosshairColor, outlineColor);
+        crosshairParts[3] = CreateCrosshairLineWithOutline("Left", new Vector2(lineLength, lineWidth), crosshairColor, outlineColor);
+        crosshairParts[4] = CreateCrosshairLineWithOutline("Right", new Vector2(lineLength, lineWidth), crosshairColor, outlineColor);
         
-        // Líneas
-        crosshairParts[1] = CreateCrosshairLine("Top", new Vector2(lineWidth, lineLength));
-        crosshairParts[2] = CreateCrosshairLine("Bottom", new Vector2(lineWidth, lineLength));
-        crosshairParts[3] = CreateCrosshairLine("Left", new Vector2(lineLength, lineWidth));
-        crosshairParts[4] = CreateCrosshairLine("Right", new Vector2(lineLength, lineWidth));
-        
+        // Posicionar con el hueco
+        baseCrosshairGap = gapSize;
         UpdateCrosshairPositions();
+    }
+    
+    RectTransform CreateCrosshairLineWithOutline(string name, Vector2 size, Color mainColor, Color outlineColor)
+    {
+        // Contenedor
+        GameObject container = CreatePanel("Crosshair" + name, hudCanvas.transform);
+        RectTransform containerRect = container.GetComponent<RectTransform>();
+        SetAnchor(containerRect, 0.5f, 0.5f, 0.5f, 0.5f);
+        containerRect.sizeDelta = size + new Vector2(2, 2);
+        
+        // Borde/Outline (más grande, detrás)
+        GameObject outline = CreatePanel("Outline", container.transform);
+        Image outlineImg = outline.AddComponent<Image>();
+        outlineImg.color = outlineColor;
+        RectTransform outlineRect = outline.GetComponent<RectTransform>();
+        outlineRect.anchorMin = Vector2.zero;
+        outlineRect.anchorMax = Vector2.one;
+        outlineRect.offsetMin = Vector2.zero;
+        outlineRect.offsetMax = Vector2.zero;
+        
+        // Línea principal (más pequeña, delante)
+        GameObject line = CreatePanel("Line", container.transform);
+        Image lineImg = line.AddComponent<Image>();
+        lineImg.color = mainColor;
+        RectTransform lineRect = line.GetComponent<RectTransform>();
+        lineRect.anchorMin = new Vector2(0.1f, 0.1f);
+        lineRect.anchorMax = new Vector2(0.9f, 0.9f);
+        lineRect.offsetMin = Vector2.zero;
+        lineRect.offsetMax = Vector2.zero;
+        
+        return containerRect;
     }
     
     RectTransform CreateCrosshairLine(string name, Vector2 size)
@@ -354,12 +391,13 @@ public class GameHUD : MonoBehaviour
     void UpdateCrosshairPositions()
     {
         float gap = baseCrosshairGap + crosshairSpread;
-        float len = 12f;
+        float lineLen = 14f; // Longitud de las líneas
         
-        if (crosshairParts[1]) crosshairParts[1].anchoredPosition = new Vector2(0, gap + len/2);
-        if (crosshairParts[2]) crosshairParts[2].anchoredPosition = new Vector2(0, -(gap + len/2));
-        if (crosshairParts[3]) crosshairParts[3].anchoredPosition = new Vector2(-(gap + len/2), 0);
-        if (crosshairParts[4]) crosshairParts[4].anchoredPosition = new Vector2(gap + len/2, 0);
+        // Posicionar cada línea con el hueco en el centro
+        if (crosshairParts[1]) crosshairParts[1].anchoredPosition = new Vector2(0, gap + lineLen/2);      // Arriba
+        if (crosshairParts[2]) crosshairParts[2].anchoredPosition = new Vector2(0, -(gap + lineLen/2));   // Abajo
+        if (crosshairParts[3]) crosshairParts[3].anchoredPosition = new Vector2(-(gap + lineLen/2), 0);   // Izquierda
+        if (crosshairParts[4]) crosshairParts[4].anchoredPosition = new Vector2(gap + lineLen/2, 0);      // Derecha
     }
     
     // Helpers

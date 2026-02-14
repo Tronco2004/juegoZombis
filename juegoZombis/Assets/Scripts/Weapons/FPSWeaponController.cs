@@ -172,6 +172,9 @@ public class FPSWeaponController : MonoBehaviour
     
     void Update()
     {
+        // No hacer nada si el juego está pausado
+        if (PauseManager.IsPaused) return;
+        
         // Aplicar retroceso visual
         ApplyRecoil();
         
@@ -423,15 +426,18 @@ public class FPSWeaponController : MonoBehaviour
         
         if (Physics.Raycast(playerCamera.transform.position, playerCamera.transform.forward, out hit, range))
         {
-            Debug.Log("Hit: " + hit.transform.name);
+            Debug.Log("Hit: " + hit.transform.name + " | Collider: " + hit.collider.name);
             endPoint = hit.point;
             
             // Intentar hacer daño a enemigos
             EnemyHealth enemy = hit.transform.GetComponentInParent<EnemyHealth>();
             if (enemy != null)
             {
-                // Detectar si es headshot
+                // Detectar si es headshot - revisar toda la jerarquía del hueso golpeado
                 bool isHeadshot = enemy.IsHeadshot(hit.transform) || enemy.IsHeadshot(hit.collider);
+                
+                // Debug para ver qué hueso golpeamos
+                Debug.Log($"[HEADSHOT DEBUG] Transform: {hit.transform.name}, Collider: {hit.collider.name}, IsHeadshot: {isHeadshot}");
                 
                 // Aplicar daño con información del headshot
                 enemy.TakeDamage(damage, hit.point, isHeadshot);
