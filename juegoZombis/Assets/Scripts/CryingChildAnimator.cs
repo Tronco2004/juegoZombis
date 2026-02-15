@@ -21,18 +21,43 @@ public class CryingChildAnimator : MonoBehaviour
     [TextArea(2, 4)]
     public string dialogoSinPeluche = "Sniff... quiero mi peluche... lo dejé arriba y tengo miedo de subir...";
     [TextArea(2, 4)]
-    public string dialogoConPeluche = "¡Mi peluche! ¡Gracias! Toma, encontré esta llave en el suelo... quizá te sirva.";
+    public string dialogoConPeluche = "¡Mi peluche! ¡Gracias! Toma, encontré esta llave en el suelo...";
     [TextArea(2, 4)]
-    public string dialogoDespues = "Gracias por mi peluche... ten cuidado ahí fuera.";
+    public string dialogoElegir = "¿Qué quieres hacer conmigo?";
+    [TextArea(2, 4)]
+    public string dialogoQuedarse = "Vale... me quedaré aquí... ten cuidado ahí fuera...";
+    [TextArea(2, 4)]
+    public string dialogoSeguir = "¡Voy contigo! No me dejes atrás...";
+    [TextArea(2, 4)]
+    public string dialogoYaSiguiendo = "¡Estoy aquí! ¡No vayas tan rápido!";
 
     public float dialogDuration = 4f;
 
     private AudioSource audioSource;
     private Animation anim;
     private Transform player;
+    private NPCFollower follower;
     private bool playerInRange = false;
     private bool hasGivenKey = false;
+    private bool hasReceivedPeluche = false;
     private bool isCrying = true;
+    private bool choiceShown = false;
+
+    /// <summary>
+    /// Otros scripts pueden consultar si el niño sigue al jugador
+    /// </summary>
+    public bool IsFollowingPlayer
+    {
+        get { return follower != null && follower.IsFollowing(); }
+    }
+
+    /// <summary>
+    /// Otros scripts pueden consultar si el niño recibió el peluche
+    /// </summary>
+    public bool HasReceivedPeluche
+    {
+        get { return hasReceivedPeluche; }
+    }
 
     void Start()
     {
@@ -58,6 +83,12 @@ public class CryingChildAnimator : MonoBehaviour
 
         // Configurar sonido de llanto continuo
         SetupCryingAudio();
+
+        // Preparar sistema de escolta (empieza parado)
+        follower = GetComponent<NPCFollower>();
+        if (follower == null)
+            follower = gameObject.AddComponent<NPCFollower>();
+        follower.isFollowing = false;
     }
 
     void SetupCryingAudio()
@@ -72,7 +103,7 @@ public class CryingChildAnimator : MonoBehaviour
             audioSource.loop = true;
             audioSource.playOnAwake = true;
             audioSource.volume = volume;
-            audioSource.spatialBlend = 1f; // 3D sound
+            audioSource.spatialBlend = 1f;
             audioSource.minDistance = 1f;
             audioSource.maxDistance = maxHearDistance;
             audioSource.rolloffMode = AudioRolloffMode.Linear;
@@ -80,7 +111,7 @@ public class CryingChildAnimator : MonoBehaviour
         }
         else
         {
-            Debug.LogWarning("CryingChild: No hay AudioClip asignado para el llanto. Arrastra uno en el Inspector.");
+            Debug.LogWarning("CryingChild: No hay AudioClip asignado para el llanto.");
         }
     }
 
@@ -93,16 +124,26 @@ public class CryingChildAnimator : MonoBehaviour
 
         if (playerInRange && Input.GetKeyDown(interactKey))
         {
+            // No interactuar si hay un diálogo de opciones activo
+            if (DialogueManager.Instance.IsShowingChoice()) return;
+
             Interact();
         }
     }
 
     void Interact()
     {
-        // Ya dimos la llave
-        if (hasGivenKey)
+        // Ya está siguiéndonos
+        if (follower != null && follower.IsFollowing())
         {
-            DialogueManager.Instance.ShowDialogue(dialogoDespues, dialogDuration);
+            DialogueManager.Instance.ShowDialogue(dialogoYaSiguiendo, 2f);
+            return;
+        }
+
+        // Ya recibió peluche pero eligió quedarse → volver a preguntar
+        if (hasReceivedPeluche && !follower.IsFollowing())
+        {
+            ShowChoiceAfterDelay();
             return;
         }
 
@@ -111,21 +152,52 @@ public class CryingChildAnimator : MonoBehaviour
         {
             // Quitar el peluche del inventario
             PlayerInventory.Instance.RemoveKey("Peluche");
+            hasReceivedPeluche = true;
 
             // Dar la llave
             PlayerInventory.Instance.AddKey(keyToGive);
             hasGivenKey = true;
 
-            // Diálogo feliz
-            DialogueManager.Instance.ShowDialogue(dialogoConPeluche, dialogDuration);
-
             // Parar de llorar
             StopCrying();
+
+            // Diálogo del peluche y luego mostrar opciones
+            DialogueManager.Instance.ShowDialogue(dialogoConPeluche, 3f);
+            Invoke("ShowChoiceAfterDelay", 3.5f);
         }
         else
         {
-            // No tiene el peluche - diálogo triste
+            // No tiene el peluche
             DialogueManager.Instance.ShowDialogue(dialogoSinPeluche, dialogDuration);
+        }
+    }
+
+    void ShowChoiceAfterDelay()
+    {
+        string[] opciones = new string[]
+        {
+            "Quédate aquí a salvo",
+            "Sígueme, te llevo con tu padre"
+        };
+
+        DialogueManager.Instance.ShowChoiceDialogue(dialogoElegir, opciones, OnChoiceSelected);
+    }
+
+    void OnChoiceSelected(int index)
+    {
+        if (index == 0)
+        {
+            // Quedarse a salvo
+            DialogueManager.Instance.ShowDialogue(dialogoQuedarse, dialogDuration);
+        }
+        else if (index == 1)
+        {
+            // Seguir al jugador
+            DialogueManager.Instance.ShowDialogue(dialogoSeguir, dialogDuration);
+            if (follower != null)
+            {
+                follower.StartFollowing();
+            }
         }
     }
 
@@ -148,16 +220,18 @@ public class CryingChildAnimator : MonoBehaviour
         return isCrying;
     }
 
-    // Mostrar prompt "Pulsa E" cuando está cerca
     void OnGUI()
     {
         if (!playerInRange || player == null) return;
+        if (DialogueManager.Instance.IsShowingChoice()) return;
 
         string prompt;
-        if (hasGivenKey)
+        if (follower != null && follower.IsFollowing())
             prompt = "Pulsa E - Hablar";
         else if (PlayerInventory.Instance.HasKey("Peluche"))
             prompt = "Pulsa E - Dar peluche";
+        else if (hasReceivedPeluche)
+            prompt = "Pulsa E - Hablar";
         else
             prompt = "Pulsa E - Hablar con el niño";
 
@@ -166,7 +240,6 @@ public class CryingChildAnimator : MonoBehaviour
         style.fontStyle = FontStyle.Bold;
         style.alignment = TextAnchor.MiddleCenter;
 
-        // Sombra
         GUIStyle shadowStyle = new GUIStyle(style);
         shadowStyle.normal.textColor = Color.black;
 
@@ -176,7 +249,7 @@ public class CryingChildAnimator : MonoBehaviour
         float y = Screen.height * 0.65f;
 
         GUI.Label(new Rect(x + 2, y + 2, w, h), prompt, shadowStyle);
-        style.normal.textColor = new Color(1f, 0.9f, 0.3f); // Amarillo
+        style.normal.textColor = new Color(1f, 0.9f, 0.3f);
         GUI.Label(new Rect(x, y, w, h), prompt, style);
     }
 }

@@ -85,6 +85,9 @@ public class DialogueManager : MonoBehaviour
 
     void OnGUI()
     {
+        // Dibujar opciones si las hay
+        DrawChoiceGUI();
+
         if (!isShowing || alpha <= 0f) return;
 
         // Inicializar estilos si es necesario
@@ -147,9 +150,146 @@ public class DialogueManager : MonoBehaviour
         totalDuration = duration;
         displayTimer = duration;
         isShowing = true;
+        isShowingChoice = false;
         alpha = 0f;
 
         Debug.Log("[DialogueManager] Mostrando: \"" + text + "\" durante " + duration + "s");
+    }
+
+    // ============== SISTEMA DE OPCIONES ==============
+
+    private bool isShowingChoice = false;
+    private string choicePrompt = "";
+    private string[] choiceOptions;
+    private System.Action<int> choiceCallback;
+    private int hoveredOption = -1;
+
+    /// <summary>
+    /// Muestra un diálogo con opciones seleccionables.
+    /// El callback recibe el índice de la opción elegida (0, 1, 2...).
+    /// </summary>
+    public void ShowChoiceDialogue(string prompt, string[] options, System.Action<int> onSelected)
+    {
+        choicePrompt = prompt;
+        choiceOptions = options;
+        choiceCallback = onSelected;
+        isShowingChoice = true;
+        isShowing = false;
+        alpha = 1f;
+
+        // Desbloquear cursor para poder clicar
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
+        Debug.Log("[DialogueManager] Mostrando opciones: " + prompt);
+    }
+
+    /// <summary>
+    /// ¿Se está mostrando un diálogo de opciones?
+    /// </summary>
+    public bool IsShowingChoice()
+    {
+        return isShowingChoice;
+    }
+
+    void DrawChoiceGUI()
+    {
+        if (!isShowingChoice) return;
+
+        // Fondo oscuro de pantalla completa
+        Color dimColor = new Color(0, 0, 0, 0.4f);
+        GUI.color = dimColor;
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), bgTexture, ScaleMode.StretchToFill);
+        GUI.color = Color.white;
+
+        float boxWidth = Screen.width * 0.5f;
+        float optionHeight = 50f;
+        float spacing = 10f;
+        float totalHeight = 60f + (optionHeight + spacing) * choiceOptions.Length + 20f;
+        float boxX = (Screen.width - boxWidth) / 2f;
+        float boxY = (Screen.height - totalHeight) / 2f;
+
+        // Fondo del cuadro
+        Color bgCol = new Color(0, 0, 0, 0.85f);
+        GUI.color = bgCol;
+        GUI.DrawTexture(new Rect(boxX - 20, boxY - 20, boxWidth + 40, totalHeight + 40), bgTexture);
+        GUI.color = Color.white;
+
+        // Título/prompt
+        GUIStyle promptStyle = new GUIStyle();
+        promptStyle.fontSize = 26;
+        promptStyle.fontStyle = FontStyle.Bold;
+        promptStyle.alignment = TextAnchor.MiddleCenter;
+        promptStyle.wordWrap = true;
+        promptStyle.normal.textColor = Color.white;
+
+        GUI.Label(new Rect(boxX, boxY, boxWidth, 50f), choicePrompt, promptStyle);
+
+        float currentY = boxY + 60f;
+
+        for (int i = 0; i < choiceOptions.Length; i++)
+        {
+            Rect btnRect = new Rect(boxX + 20, currentY, boxWidth - 40, optionHeight);
+
+            // Detectar hover
+            bool isHovered = btnRect.Contains(Event.current.mousePosition);
+
+            // Fondo del botón
+            Color btnBg = isHovered ? new Color(0.3f, 0.6f, 1f, 0.8f) : new Color(0.2f, 0.2f, 0.2f, 0.8f);
+            GUI.color = btnBg;
+            GUI.DrawTexture(btnRect, bgTexture);
+            GUI.color = Color.white;
+
+            // Texto del botón
+            GUIStyle btnStyle = new GUIStyle();
+            btnStyle.fontSize = 24;
+            btnStyle.fontStyle = FontStyle.Bold;
+            btnStyle.alignment = TextAnchor.MiddleCenter;
+            btnStyle.normal.textColor = isHovered ? Color.white : new Color(0.9f, 0.9f, 0.9f);
+
+            string optionText = (i + 1) + ". " + choiceOptions[i];
+            GUI.Label(btnRect, optionText, btnStyle);
+
+            // Detectar clic
+            if (Event.current.type == EventType.MouseDown && isHovered)
+            {
+                int selectedIndex = i;
+                isShowingChoice = false;
+
+                // Restaurar cursor
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+
+                if (choiceCallback != null)
+                {
+                    choiceCallback.Invoke(selectedIndex);
+                }
+            }
+
+            // También permitir elegir con teclado (1, 2, 3...)
+            if (Event.current.type == EventType.KeyDown && Event.current.keyCode == (KeyCode.Alpha1 + i))
+            {
+                int selectedIndex = i;
+                isShowingChoice = false;
+
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+
+                if (choiceCallback != null)
+                {
+                    choiceCallback.Invoke(selectedIndex);
+                }
+            }
+
+            currentY += optionHeight + spacing;
+        }
+
+        // Instrucción
+        GUIStyle hintStyle = new GUIStyle();
+        hintStyle.fontSize = 16;
+        hintStyle.alignment = TextAnchor.MiddleCenter;
+        hintStyle.normal.textColor = new Color(0.7f, 0.7f, 0.7f);
+        GUI.Label(new Rect(boxX, currentY + 5, boxWidth, 30f), "Haz clic o pulsa 1/2 para elegir", hintStyle);
     }
 
     /// <summary>
