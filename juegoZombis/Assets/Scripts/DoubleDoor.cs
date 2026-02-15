@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.AI;
 using System.Collections;
 
 /// <summary>
@@ -24,7 +25,7 @@ public class DoubleDoor : MonoBehaviour
     public KeyCode interactKey = KeyCode.E;
     
     [Header("=== DIRECCIÓN DE APERTURA ===")]
-    [Tooltip("Si está activado, las puertas siempre se abren hacia afuera (la dirección de la flecha azul del padre). Si está desactivado, se abren según de qué lado viene el jugador.")]
+    [Tooltip("Si está activado, las puertas se abren siempre hacia el lado contrario al jugador (se abren alejándose de ti, funciona desde ambos lados). Si está desactivado, siempre se abren en la misma dirección fija.")]
     public bool alwaysOpenOutward = true;
     [Tooltip("Invertir la dirección de apertura")]
     public bool invertOpenDirection = false;
@@ -36,6 +37,14 @@ public class DoubleDoor : MonoBehaviour
     [Header("=== PRECIO (Opcional) ===")]
     [Tooltip("Precio para abrir (0 = gratis)")]
     public int price = 0;
+
+    [Header("=== NAVMESH (Zombies pasan por puertas abiertas) ===")]
+    [Tooltip("Activar para que los zombies puedan pasar cuando la puerta está abierta. Añade NavMeshObstacle con Carve a cada puerta.")]
+    public bool useNavMeshObstacle = true;
+    [Tooltip("Tamaño del obstáculo NavMesh para cada puerta (ajustar según el tamaño de la puerta)")]
+    public Vector3 obstacleSize = new Vector3(1.5f, 2.5f, 0.3f);
+    [Tooltip("Centro del obstáculo NavMesh relativo a cada puerta")]
+    public Vector3 obstacleCenter = Vector3.zero;
 
     [Header("=== AUDIO (Opcional) ===")]
     public AudioClip openSound;
@@ -49,6 +58,10 @@ public class DoubleDoor : MonoBehaviour
     private bool playerInRange = false;
     private bool isLocked = false; // Si está bloqueada, no se puede abrir
     private Transform player;
+    
+    // NavMeshObstacles para cada puerta
+    private NavMeshObstacle leftObstacle;
+    private NavMeshObstacle rightObstacle;
     
     // Rotaciones originales
     private Quaternion leftClosedRotation;
@@ -116,6 +129,12 @@ public class DoubleDoor : MonoBehaviour
         if (price <= 0)
         {
             isPurchased = true;
+        }
+
+        // Configurar NavMeshObstacles para que los zombies puedan pasar cuando la puerta está abierta
+        if (useNavMeshObstacle)
+        {
+            SetupNavMeshObstacles();
         }
 
         // Estilos de texto
@@ -285,21 +304,31 @@ public class DoubleDoor : MonoBehaviour
     {
         isAnimating = true;
         
+        // Al abrir → desactivar obstáculos para que los zombies puedan pasar
+        // Al cerrar → se reactivan al final de la animación
+        if (opening)
+        {
+            SetNavMeshObstaclesActive(false);
+        }
+        
         // Determinar la dirección de apertura
         float direction;
         
-        if (alwaysOpenOutward)
+        if (alwaysOpenOutward && player != null)
         {
-            // Siempre abrir hacia afuera (dirección forward del padre)
-            direction = 1f;
-        }
-        else
-        {
-            // Abrir según de qué lado viene el jugador
+            // Abrir alejándose del jugador: detecta de qué lado está el jugador
+            // y abre hacia el lado contrario (funciona desde ambos lados)
             Vector3 doorForward = transform.forward;
             Vector3 toPlayer = (player.position - transform.position).normalized;
             float dot = Vector3.Dot(doorForward, toPlayer);
-            direction = dot > 0 ? 1f : -1f;
+            // Si el jugador está delante (dot > 0), abrir hacia atrás (-1)
+            // Si el jugador está detrás (dot < 0), abrir hacia delante (1)
+            direction = dot > 0 ? -1f : 1f;
+        }
+        else
+        {
+            // Dirección fija: siempre abrir hacia el forward del padre
+            direction = 1f;
         }
         
         // Opción para invertir la dirección
@@ -422,7 +451,61 @@ public class DoubleDoor : MonoBehaviour
         isOpen = opening;
         isAnimating = false;
         
+        // Al cerrar → reactivar obstáculos para bloquear a los zombies
+        if (!opening)
+        {
+            SetNavMeshObstaclesActive(true);
+        }
+        
         Debug.Log("[DoubleDoor] Puertas " + (isOpen ? "abiertas" : "cerradas"));
+    }
+
+    /// <summary>
+    /// Configura NavMeshObstacles en las puertas para que los zombies detecten puertas abiertas/cerradas
+    /// </summary>
+    void SetupNavMeshObstacles()
+    {
+        if (leftDoor != null)
+        {
+            leftObstacle = leftDoor.GetComponent<NavMeshObstacle>();
+            if (leftObstacle == null)
+                leftObstacle = leftDoor.gameObject.AddComponent<NavMeshObstacle>();
+            
+            leftObstacle.shape = NavMeshObstacleShape.Box;
+            leftObstacle.size = obstacleSize;
+            leftObstacle.center = obstacleCenter;
+            leftObstacle.carving = true;
+            leftObstacle.carvingMoveThreshold = 0.1f;
+            leftObstacle.carvingTimeToStationary = 0.2f;
+            leftObstacle.enabled = true; // Empezar bloqueando (puerta cerrada)
+            Debug.Log("[DoubleDoor] NavMeshObstacle configurado en puerta izquierda");
+        }
+        
+        if (rightDoor != null)
+        {
+            rightObstacle = rightDoor.GetComponent<NavMeshObstacle>();
+            if (rightObstacle == null)
+                rightObstacle = rightDoor.gameObject.AddComponent<NavMeshObstacle>();
+            
+            rightObstacle.shape = NavMeshObstacleShape.Box;
+            rightObstacle.size = obstacleSize;
+            rightObstacle.center = obstacleCenter;
+            rightObstacle.carving = true;
+            rightObstacle.carvingMoveThreshold = 0.1f;
+            rightObstacle.carvingTimeToStationary = 0.2f;
+            rightObstacle.enabled = true; // Empezar bloqueando (puerta cerrada)
+            Debug.Log("[DoubleDoor] NavMeshObstacle configurado en puerta derecha");
+        }
+    }
+
+    /// <summary>
+    /// Activa o desactiva los NavMeshObstacles de las puertas
+    /// </summary>
+    void SetNavMeshObstaclesActive(bool active)
+    {
+        if (leftObstacle != null) leftObstacle.enabled = active;
+        if (rightObstacle != null) rightObstacle.enabled = active;
+        Debug.Log("[DoubleDoor] NavMeshObstacles " + (active ? "activados (bloqueando)" : "desactivados (paso libre)"));
     }
 
     void PlaySound(AudioClip clip)
