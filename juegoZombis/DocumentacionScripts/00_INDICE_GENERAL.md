@@ -32,9 +32,11 @@ Assets/Scripts/
 | 4 | [04_SCRIPTS_PLAYER.md](04_SCRIPTS_PLAYER.md) | Movimiento FPS, stamina, puntos, animaciones jugador |
 | 5 | [05_SCRIPTS_UI.md](05_SCRIPTS_UI.md) | HUD completo, pausa, salud UI, diálogos, popups |
 | 6 | [06_SCRIPTS_VEHICLES.md](06_SCRIPTS_VEHICLES.md) | Barco y Helicóptero (controlador + interacción) |
-| 7 | [07_SCRIPTS_WEAPONS.md](07_SCRIPTS_WEAPONS.md) | Armas FPS, cambio de arma, compra en pared, balas |
-| 8 | [08_SISTEMAS_Y_MECANICAS.md](08_SISTEMAS_Y_MECANICAS.md) | Resumen de sistemas, interacciones entre scripts, singletons |
-| 9 | [09_PROBLEMAS_Y_MEJORAS.md](09_PROBLEMAS_Y_MEJORAS.md) | Bugs conocidos, inconsistencias, áreas de mejora |
+| 7 | [07_TERMINAL_NUCLEAR.md](07_TERMINAL_NUCLEAR.md) | 🔴 Sistema de activación de bomba nuclear (detalles técnicos) |
+| 8 | [07_SCRIPTS_WEAPONS.md](07_SCRIPTS_WEAPONS.md) | Armas FPS, cambio de arma, compra en pared, balas |
+| 9 | [08_TERMINAL_SETUP_AUTOMATICO.md](08_TERMINAL_SETUP_AUTOMATICO.md) | ⚡ **INSTALACIÓN RÁPIDA** - Canvas automático + setup de terminal |
+| 10 | [08_SISTEMAS_Y_MECANICAS.md](08_SISTEMAS_Y_MECANICAS.md) | Resumen de sistemas, interacciones entre scripts, singletons |
+| 11 | [09_PROBLEMAS_Y_MEJORAS.md](09_PROBLEMAS_Y_MEJORAS.md) | Bugs conocidos, inconsistencias, áreas de mejora |
 
 ---
 
