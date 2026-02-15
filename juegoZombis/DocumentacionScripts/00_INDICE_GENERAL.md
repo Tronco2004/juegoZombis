@@ -14,7 +14,7 @@ Assets/Scripts/
 ├── Enemies/                → 6 scripts — IA zombi, salud, spawner, animaciones, oleadas
 ├── Player/                 → 6 scripts — movimiento FPS, animaciones, puntos, cámara
 ├── UI/                     → 10 scripts — HUD, pausa, salud, puntos, daño, diálogos
-├── Vehicles/               → 2 scripts — barco (controlador + interacción)
+├── Vehicles/               → 4 scripts — barco + helicóptero (controlador + interacción)
 └── Weapons/                → 6 scripts — armas FPS, cambio de arma, compra en pared, balas
 ```
 
@@ -31,7 +31,7 @@ Assets/Scripts/
 | 3 | [03_SCRIPTS_ENEMIES.md](03_SCRIPTS_ENEMIES.md) | IA Zombi, salud enemigo, spawner, oleadas, animaciones |
 | 4 | [04_SCRIPTS_PLAYER.md](04_SCRIPTS_PLAYER.md) | Movimiento FPS, stamina, puntos, animaciones jugador |
 | 5 | [05_SCRIPTS_UI.md](05_SCRIPTS_UI.md) | HUD completo, pausa, salud UI, diálogos, popups |
-| 6 | [06_SCRIPTS_VEHICLES.md](06_SCRIPTS_VEHICLES.md) | Barco (controlador + interacción) |
+| 6 | [06_SCRIPTS_VEHICLES.md](06_SCRIPTS_VEHICLES.md) | Barco y Helicóptero (controlador + interacción) |
 | 7 | [07_SCRIPTS_WEAPONS.md](07_SCRIPTS_WEAPONS.md) | Armas FPS, cambio de arma, compra en pared, balas |
 | 8 | [08_SISTEMAS_Y_MECANICAS.md](08_SISTEMAS_Y_MECANICAS.md) | Resumen de sistemas, interacciones entre scripts, singletons |
 | 9 | [09_PROBLEMAS_Y_MEJORAS.md](09_PROBLEMAS_Y_MEJORAS.md) | Bugs conocidos, inconsistencias, áreas de mejora |
