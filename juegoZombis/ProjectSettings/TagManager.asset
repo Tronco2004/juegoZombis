@@ -6,6 +6,10 @@ TagManager:
   tags:
   - vallas
   - Water
+  - CinemachineTarget
+  - HangarDoorClosed
+  - HangarDoorOpen
+  - MansionZombie
   layers:
   - Default
   - TransparentFX

@@ -228,6 +228,13 @@ public class FPSWeaponController : MonoBehaviour
     {
         currentAmmo--;
         
+        // NOTIFICAR AL SISTEMA DE ALERTAS DE LA MANSION SI APLICA
+        // (Disparo dentro de la mansion = TODOS los zombis atacan)
+        if (MansionZombieAlert.Instance != null)
+        {
+            MansionZombieAlert.Instance.TriggerCriticalAlert();
+        }
+        
         // APLICAR RETROCESO
         AddRecoil();
         

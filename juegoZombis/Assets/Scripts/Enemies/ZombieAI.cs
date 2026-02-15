@@ -10,6 +10,8 @@ using UnityEngine.AI;
 [RequireComponent(typeof(ZombieAnimationController))]
 public class ZombieAI : MonoBehaviour
 {
+    // Sistema de alertas para zombis de mansion
+    public enum AiState { Dormido, AlertaBaja, AlertaCritica }
     [Header("Configuración de Movimiento")]
     public float speed = 20f;
     public float chaseRange = 50f; // Rango máximo para perseguir al jugador
@@ -59,6 +61,12 @@ public class ZombieAI : MonoBehaviour
     public float crawlSpeed = 1.5f;
     [Tooltip("Rango de ataque reducido al arrastrarse")]
     public float crawlAttackRange = 1.5f;
+
+    [Header("=== SISTEMA MANSION (Alerta Progresiva) ===")]
+    [Tooltip("¿Este zombi es de la mansion? Si es true, entra en modo 3 estados")]
+    public bool isMansionZombie = false;
+    [Tooltip("Rango de proximidad para detección pasiva (5m por defecto)")]
+    public float proximityAlertRange = 5f;
     
     // Componentes
     private NavMeshAgent agent;
@@ -76,6 +84,9 @@ public class ZombieAI : MonoBehaviour
     private bool isChasing = false; // Intent de perseguir (para animaciones)
     private float nextGroanTime;
     private bool wasChasing = false;
+    private AiState currentState = AiState.Dormido; // Estado actual (solo para mansion)
+    private float patrolTimer = 0f; // Para cambiar destino de patrulla
+    private Vector3 patrolDestination; // Destino actual de patrulla
     
     void Start()
     {
@@ -224,6 +235,120 @@ public class ZombieAI : MonoBehaviour
             return;
         }
         
+        // ===== LOGICA DE ESTADOS PARA MANSION =====
+        if (isMansionZombie)
+        {
+            HandleMansionZombieLogic(distanceToPlayer);
+        }
+        else
+        {
+            // Logica normal (no-mansion): perseguir siempre
+            HandleNormalZombieLogic(distanceToPlayer);
+        }
+        
+        // Actualizar animaciones
+        UpdateAnimations();
+        
+        // Gruñidos periódicos
+        UpdateAmbientSounds();
+    }
+
+    /// <summary>
+    /// Logica especial para zombis de mansion con 3 estados
+    /// </summary>
+    void HandleMansionZombieLogic(float distanceToPlayer)
+    {
+        float effectiveAttackRange = (animController != null && animController.IsCrawling) 
+            ? crawlAttackRange : attackRange;
+
+        // Cambiar estado segun condicion actual
+        if (currentState == AiState.Dormido && distanceToPlayer <= proximityAlertRange)
+        {
+            // Jugador muy cerca → cambiar a AlertaBaja
+            SetMansionState(AiState.AlertaBaja);
+        }
+
+        // Segun estado, decidir comportamiento
+        switch (currentState)
+        {
+            case AiState.Dormido:
+                // Patrullar lentamente sin atacar
+                PatrolBehavior();
+                break;
+
+            case AiState.AlertaBaja:
+                // Perseguir al jugador
+                isChasing = true;
+                if (agent != null && agent.isOnNavMesh)
+                {
+                    agent.speed = speed; // Velocidad normal
+                    agent.isStopped = false;
+                    agent.stoppingDistance = 0f;
+                    agent.SetDestination(playerTransform.position);
+                }
+                
+                // Si está en rango de ataque → atacar
+                if (distanceToPlayer <= effectiveAttackRange)
+                {
+                    LookAtPlayer();
+                    TryAttack();
+                }
+                break;
+
+            case AiState.AlertaCritica:
+                // Perseguir agresivamente
+                isChasing = true;
+                if (agent != null && agent.isOnNavMesh)
+                {
+                    agent.speed = speed; // Velocidad normal
+                    agent.isStopped = false;
+                    agent.stoppingDistance = 0f;
+                    agent.SetDestination(playerTransform.position);
+                }
+                
+                // Si está en rango de ataque → atacar
+                if (distanceToPlayer <= effectiveAttackRange)
+                {
+                    LookAtPlayer();
+                    TryAttack();
+                }
+                break;
+        }
+    }
+
+    /// <summary>
+    /// Comportamiento de patrulla: zombis se mueven lentamente sin atacar
+    /// </summary>
+    void PatrolBehavior()
+    {
+        // Cada 5 segundos, cambiar destino de patrulla
+        patrolTimer += Time.deltaTime;
+        if (patrolTimer > 5f)
+        {
+            patrolTimer = 0f;
+            
+            // Generar punto aleatorio alrededor de la posición actual
+            Vector3 randomDirection = Random.insideUnitSphere * 15f; // 15 metros de rango
+            randomDirection.y = 0; // Solo en el plano horizontal
+            patrolDestination = transform.position + randomDirection;
+        }
+
+        // Moverse lentamente hacia el destino de patrulla
+        isChasing = false;
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = false;
+            agent.speed = speed * 0.5f; // Mitad de velocidad normal (caminar lento)
+            agent.stoppingDistance = 0.5f;
+            agent.SetDestination(patrolDestination);
+        }
+    }
+
+    /// <summary>
+    /// Logica normal para zombis fuera de mansion
+    /// </summary>
+    void HandleNormalZombieLogic(float distanceToPlayer)
+    {
         // Rango de ataque efectivo
         float effectiveAttackRange = (animController != null && animController.IsCrawling) 
             ? crawlAttackRange : attackRange;
@@ -243,12 +368,6 @@ public class ZombieAI : MonoBehaviour
             LookAtPlayer();
             TryAttack();
         }
-        
-        // Actualizar animaciones
-        UpdateAnimations();
-        
-        // Gruñidos periódicos
-        UpdateAmbientSounds();
     }
     
     /// <summary>
@@ -545,6 +664,28 @@ public class ZombieAI : MonoBehaviour
 
         // Parar cualquier movimiento previo y dejar que el próximo Update lo retome
         StopMovement();
+    }
+
+    /// <summary>
+    /// Cambiar el estado de alerta del zombi de mansion (llamado desde MansionZombieAlert)
+    /// </summary>
+    public void SetMansionState(AiState newState)
+    {
+        if (!isMansionZombie) return;
+        
+        if (currentState != newState)
+        {
+            currentState = newState;
+            Debug.Log($"[ZombieAI] {gameObject.name} -> State: {newState}");
+        }
+    }
+
+    /// <summary>
+    /// Obtener el estado actual del zombi
+    /// </summary>
+    public AiState GetMansionState()
+    {
+        return currentState;
     }
 
     /// <summary>

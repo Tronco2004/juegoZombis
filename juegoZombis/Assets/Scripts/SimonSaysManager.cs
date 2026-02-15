@@ -51,6 +51,12 @@ public class SimonSaysManager : MonoBehaviour
     [Tooltip("Hangares cuya puerta se intercambia al completar el puzzle (opcional)")]
     public HangarDoorSwap[] hangaresAlCompletar;
 
+    [Tooltip("Tag de los objetos que se DESACTIVAN al completar (ej: 'HangarDoorClosed')")]
+    public string tagDesactivarAlCompletar = "HangarDoorClosed";
+
+    [Tooltip("Tag de los objetos que se ACTIVAN al completar (ej: 'HangarDoorOpen')")]
+    public string tagActivarAlCompletar = "HangarDoorOpen";
+
     [Header("=== DETECCIÓN JUGADOR ===")]
     [Tooltip("Distancia máxima para interactuar con el Simon Says")]
     public float interactionDistance = 8f;
@@ -110,6 +116,20 @@ public class SimonSaysManager : MonoBehaviour
             Debug.LogError("[SimonSays] ¡Necesitas asignar 4 pantallas!");
             enabled = false;
             return;
+        }
+
+        // Asegurar estado inicial: desactivar objetos con tag de apertura
+        GameObject[] hangaresAbiertos = GameObject.FindGameObjectsWithTag(tagActivarAlCompletar);
+        foreach (GameObject obj in hangaresAbiertos)
+        {
+            obj.SetActive(false);
+        }
+
+        // Asegurar estado inicial: activar objetos con tag de cierre
+        GameObject[] hangarCerrado = GameObject.FindGameObjectsWithTag(tagDesactivarAlCompletar);
+        foreach (GameObject obj in hangarCerrado)
+        {
+            obj.SetActive(true);
         }
 
         Debug.Log("[SimonSays] Simon Says listo. Acércate y pulsa E para jugar.");
@@ -338,6 +358,22 @@ public class SimonSaysManager : MonoBehaviour
             {
                 if (hangar != null) hangar.Swap();
             }
+        }
+
+        // Desactivar objetos con tag (puertas cerradas)
+        GameObject[] objetosCerrados = GameObject.FindGameObjectsWithTag(tagDesactivarAlCompletar);
+        foreach (GameObject obj in objetosCerrados)
+        {
+            obj.SetActive(false);
+            Debug.Log("[SimonSays] Desactivado (tag '" + tagDesactivarAlCompletar + "'): " + obj.name);
+        }
+
+        // Activar objetos con tag (puertas abiertas)
+        GameObject[] objetosAbiertos = GameObject.FindGameObjectsWithTag(tagActivarAlCompletar);
+        foreach (GameObject obj in objetosAbiertos)
+        {
+            obj.SetActive(true);
+            Debug.Log("[SimonSays] Activado (tag '" + tagActivarAlCompletar + "'): " + obj.name);
         }
 
         // Encender todas las pantallas como celebración
