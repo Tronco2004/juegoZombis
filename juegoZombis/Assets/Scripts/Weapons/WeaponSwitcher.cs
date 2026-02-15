@@ -1,16 +1,19 @@
 using UnityEngine;
 
 /// <summary>
-/// Sistema para cambiar entre armas
+/// Sistema para cambiar entre armas (soporta FPSWeaponController y FPSMeleeWeapon)
 /// Coloca este script en el jugador
 /// </summary>
 public class WeaponSwitcher : MonoBehaviour
 {
     [Header("Configuración")]
-    [Tooltip("Array con todas las armas del jugador (hijos del objeto)")]
+    [Tooltip("Array con todas las armas de fuego del jugador")]
     public FPSWeaponController[] weapons;
     
-    [Tooltip("Índice del arma inicial")]
+    [Tooltip("Array con armas cuerpo a cuerpo del jugador")]
+    public FPSMeleeWeapon[] meleeWeapons;
+    
+    [Tooltip("Índice del arma inicial (0 = primera arma de fuego, si es negativo cuenta melee)")]
     public int startingWeaponIndex = 0;
 
     [Header("Input")]
@@ -18,29 +21,52 @@ public class WeaponSwitcher : MonoBehaviour
     public bool useScrollWheel = true;
     [Tooltip("Permitir cambiar armas con teclas numéricas")]
     public bool useNumberKeys = true;
+    
+    [Tooltip("Tecla para cambiar a cuchillo rápidamente")]
+    public KeyCode quickMeleeKey = KeyCode.V;
 
     // Arma actual
     private int currentWeaponIndex = 0;
     private FPSWeaponController currentWeapon;
+    private FPSMeleeWeapon currentMeleeWeapon;
+    private bool isMeleeActive = false;
     private bool isSwitching = false;
     private int pendingWeaponIndex = -1;
+    private bool pendingIsMelee = false;
 
-    // Propiedad pública
+    // Propiedades públicas
     public FPSWeaponController CurrentWeapon => currentWeapon;
+    public FPSMeleeWeapon CurrentMeleeWeapon => currentMeleeWeapon;
+    public bool IsMeleeActive => isMeleeActive;
     public bool IsSwitching => isSwitching;
+    
+    // Total de armas disponibles
+    public int TotalWeapons => weapons.Length + meleeWeapons.Length;
 
     void Start()
     {
-        // Si no se asignaron armas, buscar en los hijos
+        // Si no se asignaron armas de fuego, buscar en los hijos
         if (weapons == null || weapons.Length == 0)
         {
             weapons = GetComponentsInChildren<FPSWeaponController>(true);
         }
+        
+        // Si no se asignaron armas melee, buscar en los hijos
+        if (meleeWeapons == null || meleeWeapons.Length == 0)
+        {
+            meleeWeapons = GetComponentsInChildren<FPSMeleeWeapon>(true);
+        }
 
-        // Desactivar todas las armas
+        // Desactivar todas las armas de fuego
         foreach (var weapon in weapons)
         {
             weapon.gameObject.SetActive(false);
+        }
+        
+        // Desactivar todas las armas melee
+        foreach (var melee in meleeWeapons)
+        {
+            melee.gameObject.SetActive(false);
         }
 
         // Equipar el arma inicial con animación
@@ -48,7 +74,16 @@ public class WeaponSwitcher : MonoBehaviour
         {
             currentWeaponIndex = Mathf.Clamp(startingWeaponIndex, 0, weapons.Length - 1);
             currentWeapon = weapons[currentWeaponIndex];
-            currentWeapon.DrawWeapon(); // Usar DrawWeapon en lugar de SetActive
+            currentWeapon.DrawWeapon();
+            isMeleeActive = false;
+        }
+        else if (meleeWeapons.Length > 0)
+        {
+            // Si no hay armas de fuego, empezar con melee
+            currentWeaponIndex = 0;
+            currentMeleeWeapon = meleeWeapons[0];
+            currentMeleeWeapon.DrawWeapon();
+            isMeleeActive = true;
         }
     }
 
@@ -59,17 +94,33 @@ public class WeaponSwitcher : MonoBehaviour
 
     void HandleWeaponSwitch()
     {
-        if (weapons.Length <= 1) 
+        if (TotalWeapons <= 1) 
         {
             return;
         }
 
         // No cambiar si está recargando o cambiando de arma
-        if (currentWeapon != null && currentWeapon.IsReloading) return;
+        if (!isMeleeActive && currentWeapon != null && currentWeapon.IsReloading) return;
         if (isSwitching) return;
+        
+        // Tecla rápida para melee (V por defecto)
+        if (Input.GetKeyDown(quickMeleeKey) && meleeWeapons.Length > 0)
+        {
+            if (!isMeleeActive)
+            {
+                // Cambiar a melee
+                EquipMeleeWeapon(0);
+            }
+            else
+            {
+                // Volver al arma de fuego anterior
+                EquipWeapon(currentWeaponIndex);
+            }
+            return;
+        }
 
-        // Cambiar con rueda del ratón
-        if (useScrollWheel)
+        // Cambiar con rueda del ratón (solo entre armas de fuego)
+        if (useScrollWheel && weapons.Length > 1)
         {
             float scroll = Input.GetAxis("Mouse ScrollWheel");
             if (scroll > 0f)
@@ -88,21 +139,40 @@ public class WeaponSwitcher : MonoBehaviour
             }
         }
 
-        // Cambiar con teclas numéricas (1-9) - Teclado principal Y numérico
+        // Cambiar con teclas numéricas (1-9)
+        // Orden: primero melee, luego armas de fuego
+        // 1 = primer melee, 2 = segundo melee o primer arma, etc.
         if (useNumberKeys)
         {
-            for (int i = 0; i < Mathf.Min(weapons.Length, 9); i++)
+            int totalWeapons = meleeWeapons.Length + weapons.Length;
+            
+            for (int i = 0; i < Mathf.Min(totalWeapons, 9); i++)
             {
-                // Teclas principales (1, 2, 3...) y numpad (Keypad1, Keypad2...)
                 bool alphaKey = Input.GetKeyDown(KeyCode.Alpha1 + i);
                 bool keypadKey = Input.GetKeyDown(KeyCode.Keypad1 + i);
                 
                 if (alphaKey || keypadKey)
                 {
-                    Debug.Log($"[WeaponSwitcher] Tecla {i+1} presionada! currentIndex={currentWeaponIndex}, nuevo índice={i}");
-                    if (i != currentWeaponIndex)
+                    // Si el índice está dentro del rango de melee
+                    if (i < meleeWeapons.Length)
                     {
-                        EquipWeapon(i);
+                        // Es un arma melee
+                        if (!isMeleeActive || currentMeleeWeapon != meleeWeapons[i])
+                        {
+                            EquipMeleeWeapon(i);
+                        }
+                    }
+                    else
+                    {
+                        // Es un arma de fuego (restar el offset de melee)
+                        int gunIndex = i - meleeWeapons.Length;
+                        if (gunIndex < weapons.Length)
+                        {
+                            if (isMeleeActive || currentWeaponIndex != gunIndex)
+                            {
+                                EquipWeapon(gunIndex);
+                            }
+                        }
                     }
                     break;
                 }
@@ -112,10 +182,10 @@ public class WeaponSwitcher : MonoBehaviour
 
     void EquipWeapon(int index)
     {
-        Debug.Log($"[EquipWeapon] Intentando cambiar a índice {index}. currentWeaponIndex={currentWeaponIndex}");
+        Debug.Log($"[EquipWeapon] Intentando cambiar a índice {index}. currentWeaponIndex={currentWeaponIndex}, isMelee={isMeleeActive}");
         
-        // Si es la misma arma, no hacer nada
-        if (currentWeapon != null && currentWeaponIndex == index) 
+        // Si es la misma arma y no estamos en melee, no hacer nada
+        if (!isMeleeActive && currentWeapon != null && currentWeaponIndex == index) 
         {
             Debug.Log("[EquipWeapon] Es la misma arma, cancelando");
             return;
@@ -125,8 +195,17 @@ public class WeaponSwitcher : MonoBehaviour
         if (isSwitching) return;
 
         pendingWeaponIndex = index;
+        pendingIsMelee = false;
 
-        // Si hay un arma actual, guardarla primero con animación
+        // Si hay un arma melee activa, guardarla primero
+        if (isMeleeActive && currentMeleeWeapon != null && currentMeleeWeapon.gameObject.activeSelf)
+        {
+            isSwitching = true;
+            currentMeleeWeapon.OnHolsterComplete += OnHolsterFinished;
+            currentMeleeWeapon.HolsterWeapon();
+        }
+        // Si hay un arma de fuego actual, guardarla primero con animación
+        else if (currentWeapon != null && currentWeapon.gameObject.activeSelf)
         if (currentWeapon != null && currentWeapon.gameObject.activeSelf)
         {
             isSwitching = true;
@@ -139,31 +218,86 @@ public class WeaponSwitcher : MonoBehaviour
         else
         {
             // No hay arma actual, equipar directamente
-            FinishEquip(index);
+            FinishEquip(index, false);
+        }
+    }
+    
+    /// <summary>
+    /// Equipar un arma cuerpo a cuerpo
+    /// </summary>
+    void EquipMeleeWeapon(int index)
+    {
+        if (meleeWeapons.Length == 0 || index >= meleeWeapons.Length) return;
+        
+        // Si ya tenemos esta melee activa, no hacer nada
+        if (isMeleeActive && currentMeleeWeapon == meleeWeapons[index]) return;
+        
+        if (isSwitching) return;
+        
+        pendingWeaponIndex = index;
+        pendingIsMelee = true;
+        
+        // Guardar arma de fuego actual si está activa
+        if (!isMeleeActive && currentWeapon != null && currentWeapon.gameObject.activeSelf)
+        {
+            isSwitching = true;
+            currentWeapon.OnHolsterComplete += OnHolsterFinished;
+            currentWeapon.HolsterWeapon();
+        }
+        // Guardar melee actual si está activa
+        else if (isMeleeActive && currentMeleeWeapon != null && currentMeleeWeapon.gameObject.activeSelf)
+        {
+            isSwitching = true;
+            currentMeleeWeapon.OnHolsterComplete += OnHolsterFinished;
+            currentMeleeWeapon.HolsterWeapon();
+        }
+        else
+        {
+            FinishEquip(index, true);
         }
     }
 
     void OnHolsterFinished()
     {
-        // Desuscribirse del evento
+        // Desuscribirse del evento de arma de fuego
         if (currentWeapon != null)
         {
             currentWeapon.OnHolsterComplete -= OnHolsterFinished;
         }
+        
+        // Desuscribirse del evento de melee
+        if (currentMeleeWeapon != null)
+        {
+            currentMeleeWeapon.OnHolsterComplete -= OnHolsterFinished;
+        }
 
         // Ahora equipar la nueva arma
-        FinishEquip(pendingWeaponIndex);
+        FinishEquip(pendingWeaponIndex, pendingIsMelee);
     }
 
-    void FinishEquip(int index)
+    void FinishEquip(int index, bool isMelee)
     {
-        currentWeaponIndex = index;
-        currentWeapon = weapons[currentWeaponIndex];
-        
-        Debug.Log($"[EquipWeapon] Sacando arma: {currentWeapon.weaponName}");
-        
-        // Llamar a DrawWeapon que activa el objeto Y reproduce la animación
-        currentWeapon.DrawWeapon();
+        if (isMelee)
+        {
+            // Equipar arma melee
+            currentMeleeWeapon = meleeWeapons[index];
+            currentWeapon = null;
+            isMeleeActive = true;
+            
+            Debug.Log($"[EquipWeapon] Sacando melee: {currentMeleeWeapon.weaponName}");
+            currentMeleeWeapon.DrawWeapon();
+        }
+        else
+        {
+            // Equipar arma de fuego
+            currentWeaponIndex = index;
+            currentWeapon = weapons[currentWeaponIndex];
+            currentMeleeWeapon = null;
+            isMeleeActive = false;
+            
+            Debug.Log($"[EquipWeapon] Sacando arma: {currentWeapon.weaponName}");
+            currentWeapon.DrawWeapon();
+        }
         
         isSwitching = false;
         pendingWeaponIndex = -1;

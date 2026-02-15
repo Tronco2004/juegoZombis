@@ -146,6 +146,9 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
       insertIndex: -1
       addedObject: {fileID: 2465810675185367291}
+    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1524420715359326857}
   m_SourcePrefab: {fileID: 100100000, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
 --- !u!1 &6212168582370371306 stripped
 GameObject:
@@ -182,11 +185,14 @@ MonoBehaviour:
   drawTime: 0.35
   holsterTime: 0.25
   useProceduralReload: 0
+  useAnimatedDraw: 0
+  useAnimatedHolster: 0
   fireSound: {fileID: 8300000, guid: 079668294acfd414fa995497809b9a4e, type: 3}
   reloadSound: {fileID: 8300000, guid: d54500eb75d0d884dbcb15b4129a8fcc, type: 3}
   emptySound: {fileID: 0}
   drawSound: {fileID: 8300000, guid: f562e5f7141acff4b89969478f17aef0, type: 3}
   holsterSound: {fileID: 0}
+  weaponVolume: 0.5
   impactEffect: {fileID: 0}
   bulletTracer: {fileID: 0}
   tracerDuration: 0.05
@@ -202,6 +208,14 @@ MonoBehaviour:
   recoilRotationAmount: 8
   recoilSpeed: 15
   recoilRecoverySpeed: 6
+  useRunAnimation: 1
+  useAnimatedRun: 0
+  runAnimSpeed: 8
+  runBobAmount: 0.04
+  runSwayAmount: 0.02
+  runTiltAmount: 10
+  runTransitionSpeed: 8
+  runLowerAmount: 0.05
 --- !u!95 &2465810675185367291
 Animator:
   serializedVersion: 5
@@ -223,6 +237,38 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &1524420715359326857
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6212168582370371306}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2268795dfe592b24aacc84a3722a4522, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  leftArm: {fileID: 0}
+  rightArm: {fileID: 0}
+  leftShoulder: {fileID: 0}
+  rightShoulder: {fileID: 0}
+  runSpeed: 7
+  walkSpeed: 4
+  transitionSpeed: 6
+  armSwingAmount: 15
+  armBobAmount: 5
+  armRollAmount: 3
+  walkArmSwingAmount: 5
+  walkArmBobAmount: 2
+  weaponBobY: 0.025
+  weaponBobX: 0.015
+  weaponTilt: 8
+  weaponLower: 0.03
+  weaponRotateY: 3
+  useIdleBreathing: 1
+  breathSpeed: 1.5
+  breathAmount: 0.002
 --- !u!4 &6736785555838172240 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: -8679921383154817045, guid: 23df7f1e38eca8b40813b9834c08df1d, type: 3}
