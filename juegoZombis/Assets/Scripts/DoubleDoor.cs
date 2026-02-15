@@ -308,7 +308,7 @@ public class DoubleDoor : MonoBehaviour
         // Al cerrar → se reactivan al final de la animación
         if (opening)
         {
-            SetNavMeshObstaclesActive(false);
+            StartCoroutine(SetNavMeshObstaclesActiveCoroutine(false));
         }
         
         // Determinar la dirección de apertura
@@ -458,6 +458,63 @@ public class DoubleDoor : MonoBehaviour
         }
         
         Debug.Log("[DoubleDoor] Puertas " + (isOpen ? "abiertas" : "cerradas"));
+    }
+
+    /// <summary>
+    /// Desactiva los obstáculos con delay para que el NavMesh se actualice
+    /// Luego notifica a los zombis cercanos para que recalculen rutas
+    /// </summary>
+    IEnumerator SetNavMeshObstaclesActiveCoroutine(bool active)
+    {
+        if (leftObstacle != null) leftObstacle.enabled = active;
+        if (rightObstacle != null) rightObstacle.enabled = active;
+        
+        Debug.Log("[DoubleDoor] NavMeshObstacles " + (active ? "ACTIVADOS (bloqueando)" : "DESACTIVADOS (paso libre)"));
+        
+        // Dar tiempo al NavMesh para recalcular
+        yield return new WaitForSeconds(0.1f);
+        
+        // Si se abrieron, notificar a zombis cercanos que recalculen rutas
+        if (!active)
+        {
+            NotifyNearbyZombies();
+        }
+    }
+
+    /// <summary>
+    /// Notifica a los zombis cercanos que recalculen su ruta
+    /// (soluciona el problema de quedarse atrapados en puertas)
+    /// </summary>
+    void NotifyNearbyZombies()
+    {
+        float notifyRadius = 20f; // Radio de búsqueda
+        
+        // Buscar todos los ZombieAI cercanos
+        ZombieAI[] zombies = FindObjectsOfType<ZombieAI>();
+        
+        int notifiedCount = 0;
+        foreach (ZombieAI zombie in zombies)
+        {
+            if (zombie == null) continue;
+            
+            float distance = Vector3.Distance(zombie.transform.position, transform.position);
+            if (distance <= notifyRadius)
+            {
+                // Forzar recálculo de ruta al zombi
+                NavMeshAgent agent = zombie.GetComponent<NavMeshAgent>();
+                if (agent != null && agent.isActiveAndEnabled)
+                {
+                    agent.ResetPath(); // Limpiar ruta actual
+                    agent.CalculatePath(agent.destination, new NavMeshPath()); // Recalcular
+                    notifiedCount++;
+                }
+            }
+        }
+        
+        if (notifiedCount > 0)
+        {
+            Debug.Log("[DoubleDoor] Notificados " + notifiedCount + " zombis para recalcular rutas");
+        }
     }
 
     /// <summary>
