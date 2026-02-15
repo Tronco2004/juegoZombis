@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 5145694329944802888}
   - component: {fileID: 4298770215760035653}
   - component: {fileID: 5525302604653586421}
+  - component: {fileID: 3119842173460207483}
   m_Layer: 0
   m_Name: Dual Mac10 - Animated
   m_TagString: Untagged
@@ -68,16 +69,37 @@ MonoBehaviour:
   drawTime: 0.35
   holsterTime: 0.25
   useProceduralReload: 1
+  useAnimatedDraw: 0
+  useAnimatedHolster: 0
   fireSound: {fileID: 8300000, guid: f4edf484d29c4154588337efaab31943, type: 3}
   reloadSound: {fileID: 0}
   emptySound: {fileID: 0}
   drawSound: {fileID: 0}
   holsterSound: {fileID: 0}
+  weaponVolume: 0.5
   impactEffect: {fileID: 0}
-  bulletPrefab: {fileID: 0}
   bulletTracer: {fileID: 0}
   tracerDuration: 0.05
   usePhysicalBullets: 0
+  bulletPrefab: {fileID: 0}
+  bulletSpeed: 50
+  shellPrefab: {fileID: 0}
+  shellEjectionPoint: {fileID: 0}
+  shellEjectionForce: 3
+  shellRotationForce: 10
+  shellLifetime: 5
+  recoilPositionAmount: 0.12
+  recoilRotationAmount: 8
+  recoilSpeed: 15
+  recoilRecoverySpeed: 6
+  useRunAnimation: 1
+  useAnimatedRun: 0
+  runAnimSpeed: 8
+  runBobAmount: 0.04
+  runSwayAmount: 0.02
+  runTiltAmount: 10
+  runTransitionSpeed: 8
+  runLowerAmount: 0.05
 --- !u!95 &4298770215760035653
 Animator:
   serializedVersion: 5
@@ -195,6 +217,38 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+--- !u!114 &3119842173460207483
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 21861860843912264}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2268795dfe592b24aacc84a3722a4522, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  leftArm: {fileID: 0}
+  rightArm: {fileID: 0}
+  leftShoulder: {fileID: 0}
+  rightShoulder: {fileID: 0}
+  runSpeed: 7
+  walkSpeed: 4
+  transitionSpeed: 6
+  armSwingAmount: 15
+  armBobAmount: 5
+  armRollAmount: 3
+  walkArmSwingAmount: 5
+  walkArmBobAmount: 2
+  weaponBobY: 0.025
+  weaponBobX: 0.015
+  weaponTilt: 8
+  weaponLower: 0.03
+  weaponRotateY: 3
+  useIdleBreathing: 1
+  breathSpeed: 1.5
+  breathAmount: 0.002
 --- !u!1 &48676280034783881
 GameObject:
   m_ObjectHideFlags: 0

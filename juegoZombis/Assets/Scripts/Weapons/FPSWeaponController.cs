@@ -30,6 +30,10 @@ public class FPSWeaponController : MonoBehaviour
     public float drawTime = 0.35f; // Tiempo para sacar el arma
     public float holsterTime = 0.25f; // Tiempo para guardar el arma
     public bool useProceduralReload = false; // Recarga procedural (baja y sube el arma) para armas sin animación de recarga
+    [Tooltip("Usar animación real de Draw del FBX en lugar de procedural")]
+    public bool useAnimatedDraw = false;
+    [Tooltip("Usar animación real de Holster del FBX en lugar de procedural")]
+    public bool useAnimatedHolster = false;
     
     [Header("Audio")]
     public AudioClip fireSound;
@@ -76,19 +80,21 @@ public class FPSWeaponController : MonoBehaviour
     [Tooltip("Velocidad de recuperación del retroceso")]
     public float recoilRecoverySpeed = 6f;
     
-    [Header("Animación de Correr")]
-    [Tooltip("Activar animación procedural de correr")]
+    [Header("Animacion de Correr (Bobbing)")]
+    [Tooltip("Activar bobbing sutil al correr")]
     public bool useRunAnimation = true;
-    [Tooltip("Velocidad de la animación de correr")]
-    public float runAnimSpeed = 8f;
-    [Tooltip("Cantidad de balanceo vertical al correr")]
-    public float runBobAmount = 0.04f;
-    [Tooltip("Cantidad de balanceo horizontal al correr")]
-    public float runSwayAmount = 0.02f;
-    [Tooltip("Inclinación del arma al correr (grados)")]
-    public float runTiltAmount = 10f;
-    [Tooltip("Velocidad de transición a posición de correr")]
+    [Tooltip("Velocidad del bobbing")]
+    public float runAnimSpeed = 10f;
+    [Tooltip("Balanceo vertical al correr")]
+    public float runBobAmount = 0.015f;
+    [Tooltip("Balanceo horizontal al correr")]
+    public float runSwayAmount = 0.008f;
+    [Tooltip("Inclinacion del arma al correr (grados)")]
+    public float runTiltAmount = 3f;
+    [Tooltip("Velocidad de transicion")]
     public float runTransitionSpeed = 8f;
+    [Tooltip("Cuanto se baja el arma al correr")]
+    public float runLowerAmount = 0.02f;
     
     // Estados
     private float nextTimeToFire = 0f;
@@ -330,7 +336,8 @@ public class FPSWeaponController : MonoBehaviour
     }
     
     /// <summary>
-    /// Aplica animación procedural de correr (balanceo de las manos)
+    /// Aplica animación procedural de correr (balanceo del arma entera)
+    /// Aplica un bobbing sutil y profesional al arma mientras se mueve
     /// </summary>
     void ApplyRunAnimation()
     {
@@ -340,43 +347,59 @@ public class FPSWeaponController : MonoBehaviour
             if (playerController == null) return;
         }
         
-        // Determinar si está corriendo
+        // Determinar estado de movimiento
         bool isRunning = playerController.IsRunning && playerController.IsMoving;
+        bool isWalking = playerController.IsMoving && !playerController.IsRunning;
         
-        // Blend suave hacia estado de correr
-        float targetBlend = isRunning ? 1f : 0f;
-        currentRunBlend = Mathf.Lerp(currentRunBlend, targetBlend, Time.deltaTime * runTransitionSpeed);
+        // Comunicar al Animator del arma
+        if (animator != null)
+        {
+            animator.SetBool("IsRunning", isRunning);
+            animator.SetBool("IsMoving", isWalking || isRunning);
+        }
         
-        // Calcular offset de correr
+        // Calcular intensidad del movimiento (correr = 1, caminar = 0.4, quieto = 0)
+        float targetIntensity = isRunning ? 1f : (isWalking ? 0.4f : 0f);
+        currentRunBlend = Mathf.Lerp(currentRunBlend, targetIntensity, Time.deltaTime * runTransitionSpeed);
+        
+        // Solo aplicar bobbing si hay movimiento
         if (currentRunBlend > 0.01f)
         {
-            runTimer += Time.deltaTime * runAnimSpeed;
+            // Velocidad del bobbing basada en si corre o camina
+            float speed = isRunning ? runAnimSpeed : runAnimSpeed * 0.6f;
+            runTimer += Time.deltaTime * speed;
             
-            // Movimiento sinusoidal para simular el balanceo al correr
-            float bobY = Mathf.Sin(runTimer * 2f) * runBobAmount;
-            float bobX = Mathf.Cos(runTimer) * runSwayAmount;
+            // === BOBBING SUTIL Y REALISTA ===
+            // Movimiento vertical: simula el paso (arriba-abajo)
+            float bobY = Mathf.Sin(runTimer * 2f) * runBobAmount * currentRunBlend;
             
-            // Inclinación del arma hacia un lado al correr
-            float tiltZ = Mathf.Sin(runTimer) * 3f;
+            // Movimiento horizontal: balanceo lateral sutil
+            float bobX = Mathf.Sin(runTimer) * runSwayAmount * currentRunBlend;
             
-            runOffset = new Vector3(bobX, bobY, 0f) * currentRunBlend;
-            runRotationOffset = new Vector3(-runTiltAmount * currentRunBlend, 0f, tiltZ * currentRunBlend);
+            // Bajar ligeramente el arma al correr (como si la relajaras)
+            float lowerY = isRunning ? -runLowerAmount : 0f;
+            
+            runOffset = new Vector3(bobX, bobY + lowerY, 0f);
+            
+            // === ROTACIÓN MÍNIMA ===
+            // Solo una ligera inclinación lateral que sigue el balanceo
+            float tiltZ = Mathf.Sin(runTimer) * runTiltAmount * currentRunBlend;
+            
+            runRotationOffset = new Vector3(0f, 0f, tiltZ);
         }
         else
         {
+            // Volver suavemente a posición original
             runTimer = 0f;
-            runOffset = Vector3.Lerp(runOffset, Vector3.zero, Time.deltaTime * runTransitionSpeed);
-            runRotationOffset = Vector3.Lerp(runRotationOffset, Vector3.zero, Time.deltaTime * runTransitionSpeed);
+            runOffset = Vector3.Lerp(runOffset, Vector3.zero, Time.deltaTime * runTransitionSpeed * 2f);
+            runRotationOffset = Vector3.Lerp(runRotationOffset, Vector3.zero, Time.deltaTime * runTransitionSpeed * 2f);
         }
         
-        // Aplicar TODO al transform: posición original + recoil + run offset
-        Vector3 finalPosition = originalLocalPosition + currentRecoilPosition + runOffset;
-        Quaternion finalRotation = originalLocalRotation 
+        // Aplicar posición y rotación final
+        transform.localPosition = originalLocalPosition + currentRecoilPosition + runOffset;
+        transform.localRotation = originalLocalRotation 
             * Quaternion.Euler(currentRecoilRotation) 
             * Quaternion.Euler(runRotationOffset);
-        
-        transform.localPosition = finalPosition;
-        transform.localRotation = finalRotation;
     }
     
     /// <summary>
@@ -590,8 +613,17 @@ public class FPSWeaponController : MonoBehaviour
         
         PlaySound(drawSound);
         
-        // Animación procedural: subir el arma desde abajo
-        StartCoroutine(DrawAnimationCoroutine());
+        if (useAnimatedDraw && animator != null)
+        {
+            // Usar animación real del FBX
+            animator.Play("Draw", 0, 0f);
+            StartCoroutine(WaitForAnimationCoroutine(drawTime, () => { isDrawing = false; }));
+        }
+        else
+        {
+            // Animación procedural: subir el arma desde abajo
+            StartCoroutine(DrawAnimationCoroutine());
+        }
     }
     
     System.Collections.IEnumerator DrawAnimationCoroutine()
@@ -645,8 +677,23 @@ public class FPSWeaponController : MonoBehaviour
         
         PlaySound(holsterSound);
         
-        // Animación procedural: bajar el arma
-        StartCoroutine(HolsterAnimationCoroutine());
+        if (useAnimatedHolster && animator != null)
+        {
+            // Usar animación real del FBX
+            animator.Play("Holster", 0, 0f);
+            StartCoroutine(WaitForAnimationCoroutine(holsterTime, () =>
+            {
+                gameObject.SetActive(false);
+                transform.localPosition = originalLocalPosition;
+                transform.localRotation = originalLocalRotation;
+                OnHolsterComplete?.Invoke();
+            }));
+        }
+        else
+        {
+            // Animación procedural: bajar el arma
+            StartCoroutine(HolsterAnimationCoroutine());
+        }
     }
     
     System.Collections.IEnumerator HolsterAnimationCoroutine()
@@ -680,6 +727,15 @@ public class FPSWeaponController : MonoBehaviour
         transform.localRotation = originalLocalRotation;
         
         OnHolsterComplete?.Invoke();
+    }
+    
+    /// <summary>
+    /// Espera un tiempo y luego ejecuta una acción (para animaciones reales del FBX)
+    /// </summary>
+    System.Collections.IEnumerator WaitForAnimationCoroutine(float duration, System.Action onComplete)
+    {
+        yield return new WaitForSeconds(duration);
+        onComplete?.Invoke();
     }
     
     /// <summary>

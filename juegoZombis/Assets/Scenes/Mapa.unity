@@ -3494,6 +3494,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5930594290286857026, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
+      propertyPath: interactionRange
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5930594290286857026, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
+      propertyPath: invertOpenDirection
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -5288,6 +5296,9 @@ MonoBehaviour:
   hasKeyMessage: Pulsa E - Abrir con llave
   alwaysOpenOutward: 1
   invertOpenDirection: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -5314,6 +5325,9 @@ MonoBehaviour:
   invertOpenDirection: 0
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -10809,6 +10823,9 @@ MonoBehaviour:
   invertOpenDirection: 0
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -14944,6 +14961,9 @@ MonoBehaviour:
   invertOpenDirection: 0
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 0}
   closeSound: {fileID: 0}
   lockedSound: {fileID: 0}
@@ -30297,6 +30317,9 @@ MonoBehaviour:
   invertOpenDirection: 0
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -35005,6 +35028,9 @@ MonoBehaviour:
   invertOpenDirection: 1
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -36643,6 +36669,9 @@ MonoBehaviour:
   invertOpenDirection: 1
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -39305,6 +39334,9 @@ MonoBehaviour:
   hasKeyMessage: Pulsa E - Abrir con llave
   alwaysOpenOutward: 1
   invertOpenDirection: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -39331,6 +39363,9 @@ MonoBehaviour:
   invertOpenDirection: 0
   hingeAxis: {x: 0, y: 1, z: 0}
   price: 0
+  useNavMeshObstacle: 1
+  obstacleSize: {x: 1.5, y: 2.5, z: 0.3}
+  obstacleCenter: {x: 0, y: 0, z: 0}
   openSound: {fileID: 8300000, guid: b952d7abad798c245a459f695927e4e5, type: 3}
   closeSound: {fileID: 8300000, guid: 3c1059405ec39b347b20de4b1e6c50ff, type: 3}
   lockedSound: {fileID: 0}
@@ -42952,6 +42987,30 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 475722, guid: 33d2396704f502c40bd674b135e08461, type: 3}
   m_PrefabInstance: {fileID: 1348152582}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &1350934790 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6089629761786273319, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
+  m_PrefabInstance: {fileID: 1783181866}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1350934795
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1350934790}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1e3fdca004f2d45fe8abbed571a8abd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_OverrideArea: 0
+  m_Area: 0
+  m_OverrideGenerateLinks: 0
+  m_GenerateLinks: 0
+  m_IgnoreFromBuild: 0
+  m_ApplyToChildren: 1
+  m_AffectedAgents: ffffffff
 --- !u!1001 &1352629166
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -57730,6 +57789,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Puertas Dobles (4)
       objectReference: {fileID: 0}
+    - target: {fileID: 2901778021366334235, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4584972516449335878, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
       propertyPath: m_LocalScale.y
       value: 0.9658742
@@ -57781,7 +57844,10 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6089629761786273319, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1350934795}
   m_SourcePrefab: {fileID: 100100000, guid: 685de2d1c04f6cd40b90cf956713ce51, type: 3}
 --- !u!1001 &1786202554
 PrefabInstance:
