@@ -21,10 +21,15 @@ public class ElectricDoorDialogue : MonoBehaviour
     [Tooltip("Tecla para interactuar")]
     public KeyCode interactKey = KeyCode.E;
 
+    [Header("=== COMPASS MARKER ===")]
+    [Tooltip("Transform del cuadro eléctrico al que apuntar en la brújula")]
+    public Transform cuadroElectricoTarget;
+    
     // Estado
     private Transform player;
     private bool playerInRange = false;
     private bool dialogueDisabled = false;
+    private bool markerAdded = false;
 
     // Estilos
     private GUIStyle promptStyle;
@@ -69,6 +74,24 @@ public class ElectricDoorDialogue : MonoBehaviour
             if (DialogueManager.Instance != null)
             {
                 DialogueManager.Instance.ShowDialogue(dialogueText, displayDuration);
+                
+                // Añadir marker en la brújula apuntando al cuadro eléctrico
+                if (!markerAdded && GameHUD.Instance != null)
+                {
+                    Transform target = cuadroElectricoTarget;
+                    // Auto-buscar si no se asignó
+                    if (target == null)
+                    {
+                        CuadroElectrico ce = FindObjectOfType<CuadroElectrico>();
+                        if (ce != null) target = ce.transform;
+                    }
+                    if (target != null)
+                    {
+                        GameHUD.Instance.AddCompassMarker("cuadro_electrico", target, 
+                            new Color(1f, 0.9f, 0.2f), "PANEL");
+                        markerAdded = true;
+                    }
+                }
             }
             Debug.Log("[ElectricDoorDialogue] Diálogo mostrado");
         }

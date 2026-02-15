@@ -324,6 +324,16 @@ public class BoatController : MonoBehaviour
             Debug.Log("[BoatController] Cámara del barco activada");
         }
         
+        // Decirle al HUD que use la cámara del barco para la brújula
+        if (GameHUD.Instance != null)
+        {
+            Camera camToUse = boatCamera != null ? boatCamera : GetComponentInChildren<Camera>();
+            if (camToUse != null)
+                GameHUD.Instance.SetHeadingOverride(camToUse.transform);
+            else
+                GameHUD.Instance.SetHeadingOverride(transform); // Fallback: orientación del barco
+        }
+        
         // Sonido de arranque
         if (startSound != null)
         {
@@ -379,6 +389,13 @@ public class BoatController : MonoBehaviour
             if (playerCamera != null) 
             {
                 playerCamera.gameObject.SetActive(true);
+                
+                // Pasar el override a la cámara del jugador ANTES de limpiarlo
+                // para evitar frames donde Camera.main es null
+                if (GameHUD.Instance != null)
+                {
+                    GameHUD.Instance.SetHeadingOverride(playerCamera.transform);
+                }
             }
             
             // Reactivar AudioListener del jugador
@@ -391,6 +408,12 @@ public class BoatController : MonoBehaviour
         {
             audioSource.Stop();
             engineRunning = false;
+        }
+        
+        // Limpiar override al siguiente frame (Camera.main ya estará disponible)
+        if (GameHUD.Instance != null)
+        {
+            StartCoroutine(ClearHeadingOverrideNextFrame());
         }
         
         driver = null;
@@ -516,5 +539,16 @@ public class BoatController : MonoBehaviour
         // Dibujar dirección del barco
         Gizmos.color = Color.blue;
         Gizmos.DrawRay(transform.position, transform.forward * 3f);
+    }
+    
+    System.Collections.IEnumerator ClearHeadingOverrideNextFrame()
+    {
+        // Esperar 2 frames para asegurar que Camera.main ya detecta la cámara del jugador
+        yield return null;
+        yield return null;
+        if (GameHUD.Instance != null)
+        {
+            GameHUD.Instance.SetHeadingOverride(null);
+        }
     }
 }

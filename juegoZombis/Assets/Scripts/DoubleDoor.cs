@@ -242,6 +242,12 @@ public class DoubleDoor : MonoBehaviour
             isLocked = false;   // Desbloquear si estaba bloqueada
             StartCoroutine(AnimateDoors(true));
             Debug.Log("[DoubleDoor] Puertas abiertas forzosamente (externo)");
+            
+            // Quitar marker de la brújula al abrir la puerta
+            if (GameHUD.Instance != null)
+            {
+                GameHUD.Instance.RemoveCompassMarker("puerta_electrica");
+            }
         }
     }
 

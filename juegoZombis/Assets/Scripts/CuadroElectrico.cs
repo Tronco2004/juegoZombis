@@ -49,6 +49,10 @@ public class CuadroElectrico : MonoBehaviour
     [SerializeField] private string activationDialogue = "Creo que se ha abierto ya, tendré que ir a comprobarlo por si acaso.";
     [SerializeField] private float dialogueDuration = 5f;
 
+    [Header("=== COMPASS MARKERS ===")]
+    [Tooltip("Transform de la puerta eléctrica para mostrar en la brújula")]
+    [SerializeField] private Transform puertaElectricaTarget;
+
     [Header("=== AUDIO ===")]
     [SerializeField] private AudioClip openSound;
     [SerializeField] private AudioClip closeSound;
@@ -225,6 +229,29 @@ public class CuadroElectrico : MonoBehaviour
             if (DialogueManager.Instance != null)
             {
                 DialogueManager.Instance.ShowDialogue(activationDialogue, dialogueDuration);
+            }
+            
+            // Quitar marker del cuadro eléctrico y añadir marker de la puerta
+            if (GameHUD.Instance != null)
+            {
+                GameHUD.Instance.RemoveCompassMarker("cuadro_electrico");
+                
+                // Buscar la puerta eléctrica para el marker
+                Transform doorTarget = puertaElectricaTarget;
+                if (doorTarget == null && puertasDobles != null && puertasDobles.Length > 0 && puertasDobles[0] != null)
+                {
+                    doorTarget = puertasDobles[0].transform;
+                }
+                if (doorTarget == null)
+                {
+                    ElectricDoorDialogue edd = FindObjectOfType<ElectricDoorDialogue>();
+                    if (edd != null) doorTarget = edd.transform;
+                }
+                if (doorTarget != null)
+                {
+                    GameHUD.Instance.AddCompassMarker("puerta_electrica", doorTarget, 
+                        new Color(0.3f, 0.9f, 1f), "PUERTA");
+                }
             }
         }
     }

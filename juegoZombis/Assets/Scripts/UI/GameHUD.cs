@@ -41,9 +41,36 @@ public class GameHUD : MonoBehaviour
     private float crosshairSpread = 0f;
     private float baseCrosshairGap = 6f;
     
+    // Brújula (Compass)
+    private RectTransform compassContainer;
+    private RectTransform compassMask;
+    private RectTransform compassStrip;
+    private TextMeshProUGUI[] compassLabels;
+    private Image[] compassTicks;
+    private float compassStripWidth;  // Ancho total de la tira
+    private float compassVisibleWidth = 500f; // Ancho visible de la brújula
+    private RectTransform compassIndicator; // Triángulo indicador central
+    
+    // Compass Markers (puntos de interés en la brújula)
+    private RectTransform compassMarkersOverlay; // Capa separada sobre la brújula
+    private System.Collections.Generic.List<CompassMarkerData> compassMarkers = new System.Collections.Generic.List<CompassMarkerData>();
+    
+    private class CompassMarkerData
+    {
+        public string id;
+        public Transform target;
+        public Color color;
+        public string label;
+        public GameObject markerGO; // Icono en la capa overlay
+    }
+    
     // Arma actual - Soporta ambos tipos de controlador
     private FPSWeaponController currentFPSWeapon;
     private WeaponSwitcher weaponSwitcher;
+    
+    // Override de heading para vehículos (barco, etc.)
+    // Cuando no es null, la brújula usa este Transform en vez de Camera.main
+    private Transform headingOverride;
     
     // Animación puntos
     private int displayedPoints;
@@ -136,6 +163,7 @@ public class GameHUD : MonoBehaviour
         CreatePointsDisplay();
         CreateWaveDisplay();
         CreateCrosshair();
+        CreateCompass();
     }
     
     void CreateHealthBar()
@@ -417,12 +445,13 @@ public class GameHUD : MonoBehaviour
     
     void Update()
     {
-        UpdateHealth();
-        UpdateStamina();
-        UpdateAmmo();
-        UpdatePoints();
-        UpdateWave();
-        UpdateCrosshair();
+        try { UpdateHealth(); } catch (System.Exception) { }
+        try { UpdateStamina(); } catch (System.Exception) { }
+        try { UpdateAmmo(); } catch (System.Exception) { }
+        try { UpdatePoints(); } catch (System.Exception) { }
+        try { UpdateWave(); } catch (System.Exception) { }
+        try { UpdateCrosshair(); } catch (System.Exception) { }
+        UpdateCompass(); // Este SIEMPRE debe ejecutarse
     }
     
     void UpdateHealth()
@@ -567,6 +596,397 @@ public class GameHUD : MonoBehaviour
         crosshairSpread = Mathf.Lerp(crosshairSpread, 0f, Time.deltaTime * 12f);
         UpdateCrosshairPositions();
     }
+    
+    // ==================== BRÚJULA ====================
+    
+    void CreateCompass()
+    {
+        // Contenedor principal arriba centro
+        GameObject containerGO = CreatePanel("CompassContainer", hudCanvas.transform);
+        compassContainer = containerGO.GetComponent<RectTransform>();
+        SetAnchor(compassContainer, 0.5f, 1f, 0.5f, 1f);
+        compassContainer.pivot = new Vector2(0.5f, 1f);
+        compassContainer.anchoredPosition = new Vector2(0, -10f);
+        compassContainer.sizeDelta = new Vector2(compassVisibleWidth, 35f);
+        
+        // Fondo semi-transparente de la brújula
+        Image compassBg = containerGO.AddComponent<Image>();
+        compassBg.color = new Color(0f, 0f, 0f, 0.4f);
+        
+        // Triángulo/Indicador central (arriba)
+        GameObject indicatorGO = CreatePanel("CompassIndicator", containerGO.transform);
+        compassIndicator = indicatorGO.GetComponent<RectTransform>();
+        SetAnchor(compassIndicator, 0.5f, 1f, 0.5f, 1f);
+        compassIndicator.pivot = new Vector2(0.5f, 1f);
+        compassIndicator.anchoredPosition = new Vector2(0, 2f);
+        compassIndicator.sizeDelta = new Vector2(12f, 8f);
+        Image indicatorImg = indicatorGO.AddComponent<Image>();
+        indicatorImg.color = Color.white;
+        
+        // Usar RectMask2D en vez de Mask para que funcione con TextMeshPro
+        GameObject maskGO = CreatePanel("CompassMask", containerGO.transform);
+        compassMask = maskGO.GetComponent<RectTransform>();
+        compassMask.anchorMin = Vector2.zero;
+        compassMask.anchorMax = Vector2.one;
+        compassMask.offsetMin = Vector2.zero;
+        compassMask.offsetMax = Vector2.zero;
+        maskGO.AddComponent<RectMask2D>(); // RectMask2D funciona con TMP sin problemas
+        
+        // Tira de brújula (se mueve horizontalmente)
+        float pixelsPerDegree = 3.5f;
+        compassStripWidth = 360f * pixelsPerDegree * 2f; // x2 para loop continuo
+        
+        GameObject stripGO = CreatePanel("CompassStrip", maskGO.transform);
+        compassStrip = stripGO.GetComponent<RectTransform>();
+        SetAnchor(compassStrip, 0.5f, 0.5f, 0.5f, 0.5f);
+        compassStrip.sizeDelta = new Vector2(compassStripWidth, 35f);
+        compassStrip.anchoredPosition = Vector2.zero;
+        
+        // Crear las marcas y etiquetas en la tira
+        BuildCompassMarks(pixelsPerDegree);
+        
+        // Capa overlay para markers (encima de todo, separada del strip)
+        GameObject overlayGO = CreatePanel("CompassMarkersOverlay", containerGO.transform);
+        compassMarkersOverlay = overlayGO.GetComponent<RectTransform>();
+        compassMarkersOverlay.anchorMin = Vector2.zero;
+        compassMarkersOverlay.anchorMax = Vector2.one;
+        compassMarkersOverlay.offsetMin = Vector2.zero;
+        compassMarkersOverlay.offsetMax = Vector2.zero;
+        overlayGO.AddComponent<RectMask2D>(); // Clipear markers fuera de la brújula
+    }
+    
+    void BuildCompassMarks(float pixelsPerDegree)
+    {
+        // Direcciones cardinales e intercardinales cada 45 grados
+        // Index: grado/45 → 0=N, 1=NE, 2=E, 3=SE, 4=S, 5=SW, 6=W, 7=NW
+        string[] cardinalNames = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
+        
+        float halfWidth = compassStripWidth / 2f;
+        float degreesInStrip = compassStripWidth / pixelsPerDegree;
+        
+        // Crear marcas cada 5 grados
+        for (float deg = 0; deg < degreesInStrip; deg += 5f)
+        {
+            float normalizedDeg = deg % 360f;
+            float xPos = (deg * pixelsPerDegree) - halfWidth;
+            
+            bool isCardinal = (Mathf.RoundToInt(normalizedDeg) % 45) == 0;
+            bool isMajor = (Mathf.RoundToInt(normalizedDeg) % 15) == 0;
+            
+            // Tick (marca vertical)
+            float tickHeight, tickWidth;
+            Color tickColor;
+            
+            if (isCardinal)
+            {
+                tickHeight = 16f;
+                tickWidth = 2.5f;
+                tickColor = Color.white;
+            }
+            else if (isMajor)
+            {
+                tickHeight = 11f;
+                tickWidth = 1.5f;
+                tickColor = new Color(1f, 1f, 1f, 0.7f);
+            }
+            else
+            {
+                tickHeight = 7f;
+                tickWidth = 1f;
+                tickColor = new Color(1f, 1f, 1f, 0.35f);
+            }
+            
+            GameObject tickGO = CreatePanel("Tick", compassStrip.transform);
+            RectTransform tickRect = tickGO.GetComponent<RectTransform>();
+            SetAnchor(tickRect, 0.5f, 0f, 0.5f, 0f);
+            tickRect.pivot = new Vector2(0.5f, 0f);
+            tickRect.sizeDelta = new Vector2(tickWidth, tickHeight);
+            tickRect.anchoredPosition = new Vector2(xPos, 1f);
+            Image tickImg = tickGO.AddComponent<Image>();
+            tickImg.color = tickColor;
+            
+            // Etiquetas de texto (cardinales + grados cada 15)
+            if (isCardinal || isMajor)
+            {
+                int degInt = Mathf.RoundToInt(normalizedDeg);
+                string label;
+                bool showBold;
+                float fSize;
+                Color labelColor;
+                
+                if (isCardinal)
+                {
+                    int idx = (degInt / 45) % 8;
+                    label = cardinalNames[idx];
+                    showBold = true;
+                    fSize = 16f;
+                    // N en rojo, resto blanco
+                    labelColor = (degInt % 360 == 0) ? new Color(1f, 0.3f, 0.3f) : Color.white;
+                }
+                else
+                {
+                    label = degInt.ToString();
+                    showBold = false;
+                    fSize = 11f;
+                    labelColor = new Color(0.8f, 0.8f, 0.8f, 0.7f);
+                }
+                
+                GameObject labelGO = CreatePanel("Lbl", compassStrip.transform);
+                RectTransform labelRect = labelGO.GetComponent<RectTransform>();
+                SetAnchor(labelRect, 0.5f, 1f, 0.5f, 1f);
+                labelRect.pivot = new Vector2(0.5f, 1f);
+                labelRect.sizeDelta = new Vector2(50f, 20f);
+                labelRect.anchoredPosition = new Vector2(xPos, -1f);
+                
+                TextMeshProUGUI labelText = labelGO.AddComponent<TextMeshProUGUI>();
+                labelText.text = label;
+                labelText.fontSize = fSize;
+                labelText.alignment = TextAlignmentOptions.Center;
+                labelText.color = labelColor;
+                labelText.fontStyle = showBold ? FontStyles.Bold : FontStyles.Normal;
+                labelText.enableWordWrapping = false;
+                labelText.overflowMode = TextOverflowModes.Overflow;
+                labelText.raycastTarget = false;
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Establece un Transform alternativo para el heading de la brújula.
+    /// Usarlo cuando el jugador sube a un vehículo (barco, coche, etc.)
+    /// Pasar null para volver al modo normal (Camera.main).
+    /// </summary>
+    public void SetHeadingOverride(Transform overrideTransform)
+    {
+        headingOverride = overrideTransform;
+        Debug.Log("[GameHUD] Heading override: " + (overrideTransform != null ? overrideTransform.name : "null (normal)"));
+    }
+    
+    /// <summary>
+    /// Obtiene el heading actual para la brújula.
+    /// Prioridad: 1) headingOverride (barco), 2) playerController (fuente principal), 3) Camera.main
+    /// En un FPS estándar, playerController.transform.eulerAngles.y == heading de la cámara.
+    /// </summary>
+    float GetCurrentHeading()
+    {
+        // 1. Override directo (barco, vehículo)
+        if (headingOverride != null)
+        {
+            return headingOverride.eulerAngles.y;
+        }
+        
+        // 2. Controlador del jugador (fuente principal - siempre fiable)
+        if (playerController != null && playerController.gameObject.activeInHierarchy)
+        {
+            return playerController.transform.eulerAngles.y;
+        }
+        
+        // 3. Fallback: Camera.main
+        Camera cam = Camera.main;
+        if (cam != null)
+        {
+            return cam.transform.eulerAngles.y;
+        }
+        
+        return 0f;
+    }
+    
+    /// <summary>
+    /// Obtiene el Transform de posición del observador (para calcular ángulos a markers).
+    /// </summary>
+    Transform GetCurrentObserver()
+    {
+        if (headingOverride != null) return headingOverride;
+        if (playerController != null && playerController.gameObject.activeInHierarchy)
+            return playerController.transform;
+        Camera cam = Camera.main;
+        if (cam != null) return cam.transform;
+        return null;
+    }
+    
+    void UpdateCompass()
+    {
+        if (compassStrip == null) return;
+        
+        float heading = GetCurrentHeading();
+        
+        // Convertir heading a posición en la tira
+        float pixelsPerDegree = compassStripWidth / 720f; // 360*2
+        float offset = heading * pixelsPerDegree;
+        
+        // Mover la tira para que el heading actual quede centrado
+        compassStrip.anchoredPosition = new Vector2(-offset, 0f);
+        
+        // Actualizar posición de los markers
+        UpdateCompassMarkers(heading, pixelsPerDegree);
+    }
+    
+    void UpdateCompassMarkers(float heading, float pixelsPerDegree)
+    {
+        if (compassMarkers == null || compassMarkersOverlay == null) return;
+        
+        Transform observer = GetCurrentObserver();
+        if (observer == null) return;
+        
+        float halfVisible = compassVisibleWidth / 2f;
+        
+        for (int i = compassMarkers.Count - 1; i >= 0; i--)
+        {
+            CompassMarkerData m = compassMarkers[i];
+            if (m.target == null)
+            {
+                // Target destruido, limpiar marker
+                if (m.markerGO != null) Destroy(m.markerGO);
+                compassMarkers.RemoveAt(i);
+                continue;
+            }
+            
+            // Calcular ángulo del target respecto al observador
+            Vector3 dir = m.target.position - observer.position;
+            float targetAngle = Mathf.Atan2(dir.x, dir.z) * Mathf.Rad2Deg;
+            if (targetAngle < 0f) targetAngle += 360f;
+            
+            // Diferencia angular (-180 a 180) respecto al heading actual
+            float angleDiff = Mathf.DeltaAngle(heading, targetAngle);
+            float xPos = angleDiff * pixelsPerDegree;
+            
+            if (m.markerGO != null)
+            {
+                // Mostrar/ocultar si está dentro del rango visible
+                bool visible = Mathf.Abs(xPos) <= halfVisible + 15f;
+                m.markerGO.SetActive(visible);
+                
+                if (visible)
+                {
+                    RectTransform rt = m.markerGO.GetComponent<RectTransform>();
+                    rt.anchoredPosition = new Vector2(xPos, 0f);
+                }
+            }
+        }
+    }
+    
+    // ==================== API PÚBLICA COMPASS MARKERS ====================
+    
+    /// <summary>
+    /// Añade un marcador en la brújula que apunta a un Transform del mundo.
+    /// Se muestra como un diamante de color con etiqueta.
+    /// Los markers están en una capa overlay separada, NO en el strip.
+    /// </summary>
+    public void AddCompassMarker(string id, Transform target, Color color, string label = "")
+    {
+        if (compassMarkersOverlay == null || target == null) return;
+        
+        // No duplicar
+        RemoveCompassMarker(id);
+        
+        CompassMarkerData data = new CompassMarkerData();
+        data.id = id;
+        data.target = target;
+        data.color = color;
+        data.label = label;
+        
+        data.markerGO = CreateMarkerVisual(data);
+        
+        compassMarkers.Add(data);
+        Debug.Log($"[Compass] Marker añadido: {id} -> {target.name}");
+    }
+    
+    /// <summary>
+    /// Quita un marcador de la brújula por su ID.
+    /// </summary>
+    public void RemoveCompassMarker(string id)
+    {
+        for (int i = compassMarkers.Count - 1; i >= 0; i--)
+        {
+            if (compassMarkers[i].id == id)
+            {
+                if (compassMarkers[i].markerGO != null) Destroy(compassMarkers[i].markerGO);
+                compassMarkers.RemoveAt(i);
+                Debug.Log($"[Compass] Marker eliminado: {id}");
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Quita todos los marcadores de la brújula.
+    /// </summary>
+    public void ClearCompassMarkers()
+    {
+        foreach (var m in compassMarkers)
+        {
+            if (m.markerGO != null) Destroy(m.markerGO);
+        }
+        compassMarkers.Clear();
+    }
+    
+    GameObject CreateMarkerVisual(CompassMarkerData data)
+    {
+        // El marker se crea en la capa OVERLAY (separada del strip)
+        GameObject markerRoot = CreatePanel("Marker_" + data.id, compassMarkersOverlay.transform);
+        RectTransform rootRect = markerRoot.GetComponent<RectTransform>();
+        SetAnchor(rootRect, 0.5f, 0.5f, 0.5f, 0.5f);
+        rootRect.sizeDelta = new Vector2(30f, 35f);
+        rootRect.anchoredPosition = Vector2.zero;
+        
+        // Triángulo indicador (flecha hacia abajo apuntando a la brújula)
+        GameObject arrow = CreatePanel("Arrow", markerRoot.transform);
+        RectTransform arrowRect = arrow.GetComponent<RectTransform>();
+        SetAnchor(arrowRect, 0.5f, 0f, 0.5f, 0f);
+        arrowRect.pivot = new Vector2(0.5f, 0f);
+        arrowRect.sizeDelta = new Vector2(6f, 8f);
+        arrowRect.anchoredPosition = new Vector2(0f, 1f);
+        Image arrowImg = arrow.AddComponent<Image>();
+        arrowImg.color = data.color;
+        arrowImg.raycastTarget = false;
+        
+        // Diamante/rombo encima del triángulo
+        GameObject diamond = CreatePanel("Diamond", markerRoot.transform);
+        RectTransform diamondRect = diamond.GetComponent<RectTransform>();
+        SetAnchor(diamondRect, 0.5f, 0.5f, 0.5f, 0.5f);
+        diamondRect.sizeDelta = new Vector2(7f, 7f);
+        diamondRect.anchoredPosition = new Vector2(0f, 2f);
+        diamondRect.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        Image diamondImg = diamond.AddComponent<Image>();
+        diamondImg.color = data.color;
+        diamondImg.raycastTarget = false;
+        
+        // Borde del diamante (detrás)
+        GameObject border = CreatePanel("Border", markerRoot.transform);
+        RectTransform borderRect = border.GetComponent<RectTransform>();
+        SetAnchor(borderRect, 0.5f, 0.5f, 0.5f, 0.5f);
+        borderRect.sizeDelta = new Vector2(9f, 9f);
+        borderRect.anchoredPosition = new Vector2(0f, 2f);
+        borderRect.localRotation = Quaternion.Euler(0f, 0f, 45f);
+        Image borderImg = border.AddComponent<Image>();
+        borderImg.color = new Color(0f, 0f, 0f, 0.8f);
+        borderImg.raycastTarget = false;
+        border.transform.SetSiblingIndex(0); // Detrás de todo
+        
+        // Etiqueta de texto (dentro de la franja, debajo del diamante)
+        if (!string.IsNullOrEmpty(data.label))
+        {
+            GameObject labelGO = CreatePanel("MarkerLabel", markerRoot.transform);
+            RectTransform labelRect = labelGO.GetComponent<RectTransform>();
+            SetAnchor(labelRect, 0.5f, 1f, 0.5f, 1f);
+            labelRect.pivot = new Vector2(0.5f, 1f);
+            labelRect.sizeDelta = new Vector2(60f, 12f);
+            labelRect.anchoredPosition = new Vector2(0f, -1f);
+            
+            TextMeshProUGUI txt = labelGO.AddComponent<TextMeshProUGUI>();
+            txt.text = data.label;
+            txt.fontSize = 8f;
+            txt.alignment = TextAlignmentOptions.Center;
+            txt.color = data.color;
+            txt.fontStyle = FontStyles.Bold;
+            txt.enableWordWrapping = false;
+            txt.overflowMode = TextOverflowModes.Overflow;
+            txt.raycastTarget = false;
+        }
+        
+        return markerRoot;
+    }
+    
+    // ==================== FIN COMPASS MARKERS ====================
     
     /// <summary>
     /// Devuelve la posición en pantalla (píxeles) del centro exacto de la mira.

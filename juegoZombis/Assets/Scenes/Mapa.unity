@@ -842,7 +842,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 449.734
+      value: 449.977
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.y
@@ -850,7 +850,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 50.305
+      value: 50.475
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalRotation.w
@@ -9244,7 +9244,7 @@ GameObject:
   - component: {fileID: 278036816}
   m_Layer: 0
   m_Name: BoatCamera
-  m_TagString: Untagged
+  m_TagString: MainCamera
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -14742,6 +14742,7 @@ MonoBehaviour:
   displayDuration: 6
   interactionRange: 3
   interactKey: 101
+  cuadroElectricoTarget: {fileID: 0}
 --- !u!1001 &477199496
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -18900,6 +18901,7 @@ MonoBehaviour:
   activationDialogue: "Creo que se ha abierto ya, tendr\xE9 que ir a comprobarlo
     por si acaso."
   dialogueDuration: 5
+  puertaElectricaTarget: {fileID: 0}
   openSound: {fileID: 0}
   closeSound: {fileID: 0}
   errorSound: {fileID: 0}
