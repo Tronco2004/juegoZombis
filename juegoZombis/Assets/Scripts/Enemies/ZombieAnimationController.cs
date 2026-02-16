@@ -1,378 +1,207 @@
 using UnityEngine;
 
-/// <summary>
-/// Controlador de animaciones del zombie.
-/// Gestiona todos los estados de animación usando los clips de Mixamo.
-/// Se comunica con ZombieAI para sincronizar estados.
-/// 
-/// Parámetros del Animator:
-///   - Speed (float): velocidad actual del agente
-///   - IsWalking (bool): si el zombie está caminando
-///   - IsRunning (bool): si el zombie está corriendo
-///   - IsCrawling (bool): si el zombie se arrastra (vida baja)
-///   - IsDead (bool): si el zombie está muerto
-///   - Attack (trigger): ataque básico
-///   - Bite (trigger): mordisco
-///   - NeckBite (trigger): mordisco al cuello
-///   - Scream (trigger): grito al detectar al jugador
-///   - Die (trigger): muerte
-///   - AttackIndex (int): índice de ataque aleatorio
-/// </summary>
-[RequireComponent(typeof(Animator))]
 public class ZombieAnimationController : MonoBehaviour
 {
     [Header("Referencias")]
-    public Animator animator;
-
-    [Header("Configuración de Locomotion")]
-    [Tooltip("Velocidad mínima para considerar que camina")]
-    public float walkThreshold = 0.1f;
-    [Tooltip("Velocidad mínima para considerar que corre")]
-    public float runThreshold = 2.5f;
-
-    [Header("Configuración de Crawl")]
-    [Tooltip("Porcentaje de vida para empezar a arrastrarse (0.0 - 1.0)")]
+    [SerializeField] private Animator animator;
+    
+    [Header("Configuracion")]
+    [SerializeField] private float speedDampTime = 0.1f;
+    [SerializeField] private float hitCooldown = 0.5f;
+    
+    [Header("Ajuste de Animacion de Caminar")]
+    [Tooltip("Velocidad base a la que la animacion de caminar se ve bien (ajustar segun tu animacion)")]
+    [SerializeField] private float walkAnimationBaseSpeed = 2f;
+    [Tooltip("Velocidad base a la que la animacion de correr se ve bien")]
+    [SerializeField] private float runAnimationBaseSpeed = 4f;
+    [Tooltip("Velocidad minima de la animacion")]
+    [SerializeField] private float minAnimSpeed = 0.5f;
+    [Tooltip("Velocidad maxima de la animacion")]
+    [SerializeField] private float maxAnimSpeed = 2f;
+    
+    [Header("Configuracion de Crawl")]
     [Range(0f, 1f)]
     public float crawlHealthPercent = 0.25f;
-    [Tooltip("Activar sistema de crawl cuando el zombie tiene poca vida")]
     public bool enableCrawlSystem = true;
-
-    [Header("Configuración de Ataques")]
-    [Tooltip("Número de variaciones de ataque disponibles")]
-    public int attackVariations = 3; // attack, bite, neckbite
-    [Tooltip("Si es true, elige ataque aleatorio. Si no, usa ataque básico")]
-    public bool randomizeAttacks = true;
-
-    [Header("Estado (solo lectura)")]
-    [SerializeField] private ZombieAnimState currentState = ZombieAnimState.Idle;
-    [SerializeField] private bool isCrawling = false;
-    [SerializeField] private bool isDead = false;
-
-    // Hashes de parámetros (mejor rendimiento que usar strings)
-    private int hashSpeed;
-    private int hashIsWalking;
-    private int hashIsRunning;
-    private int hashIsCrawling;
-    private int hashIsDead;
-    private int hashAttack;
-    private int hashBite;
-    private int hashNeckBite;
-    private int hashScream;
-    private int hashDie;
-    private int hashAttackIndex;
-    private int hashHit; // Para animación de recibir daño
-
-    // Flag para evitar repetición del grito
-    private bool hasScreamed = false;
+    [Tooltip("Velocidad de la animacion de arrastrarse")]
+    [SerializeField] private float crawlAnimSpeed = 1f;
     
-    // Para evitar spam de animación de daño
+    private int speedHash;
+    private int isHitHash;
+    private int isDeadHash;
+    private int isCrawlingHash;
+    private int attackHash;
+    
+    private bool isDead = false;
+    private bool isCrawling = false;
     private float lastHitTime = 0f;
-    private const float HIT_ANIM_COOLDOWN = 0.5f;
-
-    /// <summary>
-    /// Estados posibles del zombie
-    /// </summary>
-    public enum ZombieAnimState
-    {
-        Idle,
-        Walking,
-        Running,
-        Attacking,
-        Crawling,
-        CrawlRunning,
-        Screaming,
-        Dead
-    }
-
-    /// <summary>
-    /// Estado actual de la animación
-    /// </summary>
-    public ZombieAnimState CurrentState => currentState;
-
-    /// <summary>
-    /// True si el zombie está en modo crawl (arrastrándose)
-    /// </summary>
-    public bool IsCrawling => isCrawling;
-
-    void Awake()
+    private float groundY = 0f;
+    
+    private void Awake()
     {
         if (animator == null)
+        {
             animator = GetComponent<Animator>();
-
+            if (animator == null)
+                animator = GetComponentInChildren<Animator>();
+        }
         CacheParameterHashes();
+        groundY = transform.position.y;
     }
-
-    /// <summary>
-    /// Cachea los hashes de los parámetros del Animator para mejor rendimiento
-    /// </summary>
-    void CacheParameterHashes()
+    
+    private void CacheParameterHashes()
     {
-        hashSpeed      = Animator.StringToHash("Speed");
-        hashIsWalking  = Animator.StringToHash("IsWalking");
-        hashIsRunning  = Animator.StringToHash("IsRunning");
-        hashIsCrawling = Animator.StringToHash("IsCrawling");
-        hashIsDead     = Animator.StringToHash("IsDead");
-        hashAttack     = Animator.StringToHash("Attack");
-        hashBite       = Animator.StringToHash("Bite");
-        hashNeckBite   = Animator.StringToHash("NeckBite");
-        hashScream     = Animator.StringToHash("Scream");
-        hashDie        = Animator.StringToHash("Die");
-        hashAttackIndex = Animator.StringToHash("AttackIndex");
-        hashHit        = Animator.StringToHash("Hit"); // Trigger para recibir daño
+        speedHash = Animator.StringToHash("Speed");
+        isHitHash = Animator.StringToHash("IsHit");
+        isDeadHash = Animator.StringToHash("IsDead");
+        isCrawlingHash = Animator.StringToHash("IsCrawling");
+        attackHash = Animator.StringToHash("Attack");
     }
-
-    /// <summary>
-    /// Actualiza la locomotion del zombie según su velocidad actual
-    /// Llamar desde ZombieAI en Update()
-    /// </summary>
-    /// <param name="currentSpeed">Velocidad actual del NavMeshAgent</param>
-    public void UpdateLocomotion(float currentSpeed)
+    
+    private void LateUpdate()
     {
-        if (isDead) return;
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-
-        bool isWalking = currentSpeed > walkThreshold;
-        bool isRunning = currentSpeed > runThreshold;
-
-        animator.SetFloat(hashSpeed, currentSpeed);
-        animator.SetBool(hashIsWalking, isWalking);
-        animator.SetBool(hashIsRunning, isRunning);
-
-        // Actualizar estado interno
-        if (isCrawling)
+        // Mantener al zombie en el suelo si esta arrastrándose
+        if (isCrawling && !isDead)
         {
-            currentState = isRunning ? ZombieAnimState.CrawlRunning : ZombieAnimState.Crawling;
-        }
-        else if (isRunning)
-        {
-            currentState = ZombieAnimState.Running;
-        }
-        else if (isWalking)
-        {
-            currentState = ZombieAnimState.Walking;
-        }
-        else
-        {
-            currentState = ZombieAnimState.Idle;
+            Vector3 pos = transform.position;
+            pos.y = groundY;
+            transform.position = pos;
         }
     }
-
-    /// <summary>
-    /// Ejecuta una animación de ataque.
-    /// Elige aleatoriamente entre attack, bite y neckbite si randomizeAttacks está activo.
-    /// </summary>
-    public void PlayAttack()
+    
+    public void UpdateLocomotion(float speed)
     {
-        if (isDead) return;
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-
-        currentState = ZombieAnimState.Attacking;
-
-        if (randomizeAttacks)
+        if (isDead || animator == null) return;
+        
+        // Calcular velocidad normalizada para el parametro Speed del Animator
+        float normalizedSpeed = Mathf.Clamp01(speed / 5f);
+        animator.SetFloat(speedHash, normalizedSpeed, speedDampTime, Time.deltaTime);
+        
+        // Ajustar la velocidad de reproduccion de la animacion para que coincida con el movimiento real
+        if (speed > 0.1f)
         {
-            int attackType = Random.Range(0, attackVariations);
-            animator.SetInteger(hashAttackIndex, attackType);
-
-            switch (attackType)
+            float baseSpeed = speed > 2.5f ? runAnimationBaseSpeed : walkAnimationBaseSpeed;
+            float animSpeed = speed / baseSpeed;
+            animSpeed = Mathf.Clamp(animSpeed, minAnimSpeed, maxAnimSpeed);
+            
+            if (isCrawling)
             {
-                case 0:
-                    animator.SetTrigger(hashAttack);
-                    break;
-                case 1:
-                    animator.SetTrigger(hashBite);
-                    break;
-                case 2:
-                    animator.SetTrigger(hashNeckBite);
-                    break;
-                default:
-                    animator.SetTrigger(hashAttack);
-                    break;
+                animator.speed = crawlAnimSpeed;
+            }
+            else
+            {
+                animator.speed = animSpeed;
             }
         }
         else
         {
-            animator.SetTrigger(hashAttack);
+            animator.speed = 1f;
         }
-    }
-
-    /// <summary>
-    /// Reproduce el grito del zombie (al detectar al jugador por primera vez)
-    /// Solo se reproduce una vez por zombie.
-    /// </summary>
-    public void PlayScream()
-    {
-        if (isDead || hasScreamed) return;
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-
-        hasScreamed = true;
-        currentState = ZombieAnimState.Screaming;
-        animator.SetTrigger(hashScream);
-    }
-
-    /// <summary>
-    /// Activa el modo crawl (arrastrarse) cuando la vida es baja
-    /// </summary>
-    public void SetCrawling(bool crawling)
-    {
-        if (isDead) return;
-        if (!enableCrawlSystem) return;
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-
-        isCrawling = crawling;
-        animator.SetBool(hashIsCrawling, crawling);
-
-        if (crawling)
-        {
-            currentState = ZombieAnimState.Crawling;
-            Debug.Log($"[ZombieAnim] {gameObject.name} ahora se arrastra (vida baja)");
-        }
-    }
-
-    /// <summary>
-    /// Verifica si el zombie debería arrastrarse según su vida actual
-    /// </summary>
-    /// <param name="currentHealth">Vida actual</param>
-    /// <param name="maxHealth">Vida máxima</param>
-    public void CheckCrawlState(float currentHealth, float maxHealth)
-    {
-        if (!enableCrawlSystem || isDead) return;
-        if (maxHealth <= 0) return;
-
-        float healthPercent = currentHealth / maxHealth;
-        
-        if (healthPercent <= crawlHealthPercent && !isCrawling)
-        {
-            SetCrawling(true);
-        }
-    }
-
-    /// <summary>
-    /// Ejecuta la animación de muerte
-    /// </summary>
-    public void PlayDeath()
-    {
-        if (isDead) return;
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-
-        isDead = true;
-        currentState = ZombieAnimState.Dead;
-        
-        animator.SetBool(hashIsDead, true);
-        animator.SetTrigger(hashDie);
-
-        Debug.Log($"[ZombieAnim] {gameObject.name} animación de muerte");
     }
     
-    /// <summary>
-    /// Ejecuta la animación de recibir daño (hit reaction)
-    /// </summary>
+    public void PlayAttack()
+    {
+        if (isDead || animator == null) return;
+        animator.SetTrigger(attackHash);
+    }
+    
     public void PlayHitReaction()
     {
-        if (isDead) return;
-        if (animator == null || animator.runtimeAnimatorController == null) return;
-        
-        // Cooldown para evitar spam de animaciones
-        if (Time.time - lastHitTime < HIT_ANIM_COOLDOWN) return;
-        
+        if (isDead || animator == null) return;
+        if (Time.time - lastHitTime < hitCooldown) return;
         lastHitTime = Time.time;
         
-        // Intentar activar el trigger de Hit
-        // Si el Animator no tiene este parámetro, usamos CrossFade como alternativa
-        try
-        {
-            animator.SetTrigger(hashHit);
-        }
-        catch
-        {
-            // Si no existe el trigger, intentamos hacer un pequeño "stagger" visual
-            // usando la velocidad temporalmente
-        }
+        // Guardar posición Y actual para evitar que el root motion hunda al zombie
+        Vector3 currentPos = transform.position;
+        animator.SetTrigger(isHitHash);
         
-        // Efecto visual alternativo: pequeño retroceso/tambaleo
-        StartCoroutine(HitStaggerEffect());
+        // Forzar que mantenga la posición Y
+        StartCoroutine(MaintainYPosition(currentPos.y));
     }
     
-    /// <summary>
-    /// Coroutine para efecto de tambaleo al recibir daño
-    /// </summary>
-    private System.Collections.IEnumerator HitStaggerEffect()
+    private System.Collections.IEnumerator MaintainYPosition(float targetY)
     {
-        // Guardar velocidad original
-        float originalSpeed = animator.GetFloat(hashSpeed);
-        
-        // Reducir velocidad brevemente (efecto de stagger)
-        animator.SetFloat(hashSpeed, 0f);
-        
-        // Pequeño movimiento hacia atrás
-        Vector3 knockbackDir = -transform.forward * 0.1f;
-        Vector3 startPos = transform.position;
+        float duration = 0.5f; // Duración de la animación de hit
         float elapsed = 0f;
-        float duration = 0.15f;
         
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float t = elapsed / duration;
-            // Movimiento de ida y vuelta
-            float offset = Mathf.Sin(t * Mathf.PI) * 0.1f;
-            transform.position = startPos + knockbackDir * offset;
+            Vector3 pos = transform.position;
+            pos.y = targetY;
+            transform.position = pos;
             yield return null;
         }
-        
-        transform.position = startPos;
-        
-        // Restaurar velocidad
-        animator.SetFloat(hashSpeed, originalSpeed);
     }
-
-    /// <summary>
-    /// Resetea el flag de grito para permitir que grite de nuevo
-    /// (útil si se reutiliza el zombie de un pool)
-    /// </summary>
-    public void ResetScream()
+    
+    public void PlayDeath()
     {
-        hasScreamed = false;
+        if (animator == null) return;
+        isDead = true;
+        animator.SetBool(isDeadHash, true);
     }
-
-    /// <summary>
-    /// Resetea todo el controlador de animaciones
-    /// </summary>
-    public void ResetAll()
+    
+    public void SetCrawling(bool crawling)
+    {
+        if (isDead || animator == null) return;
+        if (!enableCrawlSystem) return;
+        isCrawling = crawling;
+        animator.SetBool(isCrawlingHash, crawling);
+        
+        // Guardar la posicion Y actual del suelo cuando empieza a arrastrarse
+        if (crawling)
+        {
+            groundY = transform.position.y;
+        }
+    }
+    
+    public void CheckCrawlState(float currentHealth, float maxHealth)
+    {
+        if (!enableCrawlSystem || isDead) return;
+        if (maxHealth <= 0) return;
+        float healthPercent = currentHealth / maxHealth;
+        if (healthPercent <= crawlHealthPercent && !isCrawling)
+            SetCrawling(true);
+    }
+    
+    public bool IsDead => isDead;
+    public bool IsCrawling => isCrawling;
+    
+    public void ResetController()
     {
         isDead = false;
         isCrawling = false;
-        hasScreamed = false;
-        currentState = ZombieAnimState.Idle;
-
-        if (animator != null && animator.runtimeAnimatorController != null)
+        lastHitTime = 0f;
+        if (animator != null)
         {
-            animator.SetBool(hashIsDead, false);
-            animator.SetBool(hashIsCrawling, false);
-            animator.SetBool(hashIsWalking, false);
-            animator.SetBool(hashIsRunning, false);
-            animator.SetFloat(hashSpeed, 0f);
+            animator.SetBool(isDeadHash, false);
+            animator.SetBool(isCrawlingHash, false);
+            animator.SetFloat(speedHash, 0f);
+            animator.Rebind();
+            animator.Update(0f);
         }
     }
-
-    /// <summary>
-    /// Devuelve true si el zombie está reproduciendo un ataque actualmente
-    /// </summary>
+    
+    public void ResetAll() => ResetController();
+    public Animator GetAnimator() => animator;
+    
+    public void SetAnimator(Animator newAnimator)
+    {
+        animator = newAnimator;
+        CacheParameterHashes();
+    }
+    
     public bool IsPlayingAttack()
     {
-        if (animator == null || animator.runtimeAnimatorController == null) return false;
-        
+        if (animator == null) return false;
         AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-        return stateInfo.IsName("Attack") || stateInfo.IsName("Bite") || stateInfo.IsName("NeckBite");
+        return stateInfo.IsTag("Attack");
     }
-
-    /// <summary>
-    /// Devuelve true si la animación de muerte ha terminado
-    /// </summary>
+    
     public bool IsDeathAnimationComplete()
     {
-        if (animator == null || animator.runtimeAnimatorController == null) return true;
-        
+        if (animator == null) return true;
         AnimatorStateInfo stateInfo = animator.GetCurrentAnimatorStateInfo(0);
-        return stateInfo.IsName("Death") && stateInfo.normalizedTime >= 0.95f;
+        return stateInfo.IsTag("Death") && stateInfo.normalizedTime >= 0.95f;
     }
 }

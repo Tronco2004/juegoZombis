@@ -149,9 +149,9 @@ public class ZombieAI : MonoBehaviour
         }
         
         // Asignar el Animator al animController si lo tiene vacío
-        if (animController != null && animController.animator == null)
+        if (animController != null && animController.GetAnimator() == null)
         {
-            animController.animator = GetComponentInChildren<Animator>();
+            animController.SetAnimator(GetComponentInChildren<Animator>());
         }
         
         // IMPORTANTE: Desactivar Root Motion para que NavMeshAgent controle el movimiento
@@ -470,11 +470,8 @@ public class ZombieAI : MonoBehaviour
     /// </summary>
     void OnPlayerDetected()
     {
-        if (animController != null)
-        {
-            animController.PlayScream();
-            screamEndTime = Time.time + 1.5f; // Duración del grito ~1.5s
-        }
+        // PlayScream removido - ya no existe en el nuevo sistema de animaciones
+        screamEndTime = Time.time + 1.5f; // Duración del grito ~1.5s
         PlayRandomSound(screamSounds);
     }
     
@@ -517,14 +514,19 @@ public class ZombieAI : MonoBehaviour
         
         float currentSpeed = (agent != null && agent.isOnNavMesh) ? agent.velocity.magnitude : 0f;
         
-        if (isChasing && currentSpeed < 0.1f)
+        // Si está arrastrándose, usar la velocidad de crawl para la animación
+        if (animController.IsCrawling)
         {
-            // Está persiguiendo pero atascado: forzar animación de caminar (1.0 = justo por encima del walkThreshold)
-            animController.UpdateLocomotion(1.0f);
+            animController.UpdateLocomotion(isChasing ? crawlSpeed : 0f);
+        }
+        else if (isChasing && currentSpeed < 0.1f)
+        {
+            // Está persiguiendo pero atascado: forzar animación de caminar
+            animController.UpdateLocomotion(speed * 0.5f);
         }
         else
         {
-            // Velocidad real (o parado si no persigue)
+            // Velocidad real
             animController.UpdateLocomotion(isChasing ? currentSpeed : 0f);
         }
     }
