@@ -23,6 +23,10 @@ public class KeyItem : MonoBehaviour
     public float floatAmplitude = 0.2f;
     public float floatSpeed = 2f;
     
+    [Header("=== INVENTARIO ===")]
+    [Tooltip("Datos del item para el nuevo inventario (crear ScriptableObject: Assets>Create>Inventory>Item Data)")]
+    public InventoryItemData inventoryItemData;
+
     [Header("=== AUDIO (Opcional) ===")]
     public AudioClip pickupSound;
     [Range(0f, 2f)]
@@ -96,6 +100,11 @@ public class KeyItem : MonoBehaviour
         if (PlayerInventory.Instance != null)
         {
             PlayerInventory.Instance.AddKey(keyName);
+
+            // Añadir al sistema de inventario visual (hotbar)
+            if (InventorySystem.Instance != null && inventoryItemData != null)
+                InventorySystem.Instance.AddItem(inventoryItemData, gameObject);
+
             Debug.Log("[KeyItem] ¡Llave '" + keyName + "' recogida!");
             
             // Reproducir sonido

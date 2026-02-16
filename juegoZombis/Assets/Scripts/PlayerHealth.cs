@@ -60,6 +60,8 @@ public class PlayerHealth : MonoBehaviour
     
     [Header("=== ESTADO ===")]
     public bool isDead = false;
+    [HideInInspector]
+    public bool isInVehicle = false; // Invulnerable mientras está en un vehículo
     
     // Variables internas
     private float timeSinceLastDamage;
@@ -183,6 +185,7 @@ public class PlayerHealth : MonoBehaviour
     public void TakeDamage(float damage, Vector3 damageSource)
     {
         if (isDead) return;
+        if (isInVehicle) return; // No recibir daño dentro de un vehículo
         
         currentHealth -= damage;
         timeSinceLastDamage = 0f;

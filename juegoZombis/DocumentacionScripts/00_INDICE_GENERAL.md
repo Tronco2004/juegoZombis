@@ -37,6 +37,7 @@ Assets/Scripts/
 | 9 | [08_TERMINAL_SETUP_AUTOMATICO.md](08_TERMINAL_SETUP_AUTOMATICO.md) | ⚡ **INSTALACIÓN RÁPIDA** - Canvas automático + setup de terminal |
 | 10 | [08_SISTEMAS_Y_MECANICAS.md](08_SISTEMAS_Y_MECANICAS.md) | Resumen de sistemas, interacciones entre scripts, singletons |
 | 11 | [09_PROBLEMAS_Y_MEJORAS.md](09_PROBLEMAS_Y_MEJORAS.md) | Bugs conocidos, inconsistencias, áreas de mejora |
+| 12 | [10_SISTEMA_INVENTARIO.md](10_SISTEMA_INVENTARIO.md) | 🎒 Sistema de inventario hotbar (5 slots, inspección 3D) |
 
 ---
 

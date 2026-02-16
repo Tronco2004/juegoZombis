@@ -14,6 +14,8 @@ public class FPSWeaponController : MonoBehaviour
     
     [Header("Info del Arma")]
     public string weaponName = "Pistola";
+    [Tooltip("Icono del arma para el inventario/HUD")]
+    public Sprite weaponIcon;
     
     [Header("Configuración del Arma")]
     public float damage = 25f;
