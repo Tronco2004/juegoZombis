@@ -181,9 +181,6 @@ PrefabInstance:
     - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b635a33689829be4e8531b0af17c500e, type: 3}
       insertIndex: -1
       addedObject: {fileID: 8513528481177031827}
-    - targetCorrespondingSourceObject: {fileID: 919132149155446097, guid: b635a33689829be4e8531b0af17c500e, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 4371668500487793647}
   m_SourcePrefab: {fileID: 100100000, guid: b635a33689829be4e8531b0af17c500e, type: 3}
 --- !u!4 &5839547054158217878 stripped
 Transform:
@@ -234,6 +231,7 @@ MonoBehaviour:
   audioSource: {fileID: 8513528481177031827}
   playerCamera: {fileID: 0}
   weaponName: AK-47
+  weaponIcon: {fileID: 21300000, guid: 1a5056454abdd75498ee2ccb1918198b, type: 3}
   damage: 25
   range: 100
   fireRate: 0.15
@@ -270,7 +268,6 @@ MonoBehaviour:
   recoilSpeed: 10
   recoilRecoverySpeed: 8
   useRunAnimation: 1
-  useAnimatedRun: 0
   runAnimSpeed: 8
   runBobAmount: 0.04
   runSwayAmount: 0.02
@@ -373,35 +370,3 @@ AudioSource:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
---- !u!114 &4371668500487793647
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6503740710875289644}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2268795dfe592b24aacc84a3722a4522, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  leftArm: {fileID: 0}
-  rightArm: {fileID: 0}
-  leftShoulder: {fileID: 0}
-  rightShoulder: {fileID: 0}
-  runSpeed: 7
-  walkSpeed: 4
-  transitionSpeed: 6
-  armSwingAmount: 15
-  armBobAmount: 5
-  armRollAmount: 3
-  walkArmSwingAmount: 5
-  walkArmBobAmount: 2
-  weaponBobY: 0.025
-  weaponBobX: 0.015
-  weaponTilt: 8
-  weaponLower: 0.03
-  weaponRotateY: 3
-  useIdleBreathing: 1
-  breathSpeed: 1.5
-  breathAmount: 0.002

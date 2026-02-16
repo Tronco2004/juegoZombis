@@ -6,6 +6,10 @@ public class PeluchePickup : MonoBehaviour
     public float pickupRange = 2f;
     public KeyCode pickupKey = KeyCode.E;
 
+    [Header("--- INVENTARIO ---")]
+    [Tooltip("Datos del item para el nuevo inventario (crear ScriptableObject: Assets>Create>Inventory>Item Data)")]
+    public InventoryItemData inventoryItemData;
+
     [Header("--- SONIDO ---")]
     [Tooltip("Sonido al recoger el peluche (opcional)")]
     public AudioClip pickupSound;
@@ -69,6 +73,10 @@ public class PeluchePickup : MonoBehaviour
 
         // Añadir al inventario como "Peluche"
         PlayerInventory.Instance.AddKey("Peluche");
+
+        // Añadir al sistema de inventario visual (hotbar)
+        if (InventorySystem.Instance != null && inventoryItemData != null)
+            InventorySystem.Instance.AddItem(inventoryItemData, gameObject);
 
         // Sonido de recogida
         if (pickupSound != null)

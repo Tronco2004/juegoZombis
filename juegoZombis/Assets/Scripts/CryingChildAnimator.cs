@@ -16,6 +16,8 @@ public class CryingChildAnimator : MonoBehaviour
     [Header("--- LLAVE ---")]
     [Tooltip("Nombre de la llave que da el niño al recibir el peluche")]
     public string keyToGive = "LlaveCasa";
+    [Tooltip("ScriptableObject con los datos de la llave para el nuevo inventario")]
+    public InventoryItemData keyInventoryData;
 
     [Header("--- DIÁLOGOS ---")]
     [TextArea(2, 4)]
@@ -156,6 +158,11 @@ public class CryingChildAnimator : MonoBehaviour
 
             // Dar la llave
             PlayerInventory.Instance.AddKey(keyToGive);
+            
+            // Añadir al nuevo sistema de inventario visual
+            if (InventorySystem.Instance != null && keyInventoryData != null)
+                InventorySystem.Instance.AddItem(keyInventoryData, gameObject);
+            
             hasGivenKey = true;
 
             // Parar de llorar

@@ -130,6 +130,10 @@ public class HelicopterController : MonoBehaviour
     private AudioSource audioSrc;
     private bool engineAudioPlaying;
 
+    // Física
+    private Rigidbody rb;
+    private BoxCollider boxCol;
+
     // ══════════════════════════════════════════════════════════════════
     //  UNITY LIFECYCLE
     // ══════════════════════════════════════════════════════════════════
@@ -142,13 +146,21 @@ public class HelicopterController : MonoBehaviour
         // Heading real = rotación visual Y - offset del modelo
         yaw = transform.eulerAngles.y - modelYawOffset;
 
-        // Congelar Rigidbody para que no se vuelque
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.freezeRotation = true;
-            rb.isKinematic = true;
-        }
+        // Configurar Rigidbody — NO kinematic para que Unity detecte colisiones
+        rb = GetComponent<Rigidbody>();
+        if (rb == null)
+            rb = gameObject.AddComponent<Rigidbody>();
+        rb.freezeRotation = true;
+        rb.isKinematic = false;
+        rb.useGravity = false;
+        rb.mass = 500f; // Pesado para que no lo empujen zombis/objetos
+        rb.drag = 1f;
+        rb.angularDrag = 10f;
+        rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+        rb.interpolation = RigidbodyInterpolation.Interpolate;
+
+        // Cachear BoxCollider
+        boxCol = GetComponent<BoxCollider>();
 
         // AudioSource
         audioSrc = GetComponent<AudioSource>();
@@ -215,14 +227,13 @@ public class HelicopterController : MonoBehaviour
             if (!IsGrounded())
             {
                 vSpeed -= gravity * Time.deltaTime;
-                Vector3 pos = transform.position;
-                pos.y += vSpeed * Time.deltaTime;
-                transform.position = pos;
+                rb.velocity = new Vector3(0f, vSpeed, 0f);
             }
             else
             {
                 vSpeed = 0f;
                 currentSpeed = 0f;
+                rb.velocity = Vector3.zero;
             }
 
             // Mantener derecho (sin inclinación)
@@ -298,7 +309,11 @@ public class HelicopterController : MonoBehaviour
             if (!IsGrounded())
             {
                 vSpeed -= gravity * (1f - power) * Time.deltaTime;
-                transform.position += Vector3.up * vSpeed * Time.deltaTime;
+                rb.velocity = new Vector3(0f, vSpeed, 0f);
+            }
+            else
+            {
+                rb.velocity = Vector3.zero;
             }
             ApplyTilt(0f, 0f);
             return;
@@ -341,10 +356,9 @@ public class HelicopterController : MonoBehaviour
         if (transform.position.y >= maxAltitude && vSpeed > 0f) vSpeed = 0f;
         if (GroundDistance() < minGroundClearance && vSpeed < 0f) vSpeed = 0f;
 
-        // Aplicar posición
-        Vector3 newPos = transform.position + movement;
-        newPos.y += vSpeed * Time.deltaTime;
-        transform.position = newPos;
+        // Aplicar velocidad — Unity maneja las colisiones con paredes automáticamente
+        Vector3 desiredVelocity = headingDir * currentSpeed + Vector3.up * vSpeed;
+        rb.velocity = desiredVelocity;
 
         // ── Inclinación visual (pura estética) ──
         ApplyTilt(-inputFwd * pitchTiltAngle, -inputTurn * rollTiltAngle);
@@ -423,12 +437,24 @@ public class HelicopterController : MonoBehaviour
 
     float GroundDistance()
     {
-        RaycastHit hit;
+        // Lanzar rayo hacia abajo ignorando los colliders del propio helicóptero
         float maxCheck = maxAltitude + 50f;
-        return Physics.Raycast(transform.position, Vector3.down, out hit, maxCheck) ? hit.distance : maxCheck;
+        RaycastHit[] hits = Physics.RaycastAll(transform.position, Vector3.down, maxCheck);
+        float minDist = maxCheck;
+        foreach (var hit in hits)
+        {
+            // Ignorar colliders del helicóptero
+            if (hit.collider.transform.IsChildOf(transform) || hit.collider.transform == transform)
+                continue;
+            if (hit.distance < minDist)
+                minDist = hit.distance;
+        }
+        return minDist;
     }
 
     bool IsGrounded() => GroundDistance() < minGroundClearance + 0.5f;
+
+
 
     // ══════════════════════════════════════════════════════════════════
     //  SUBIR / BAJAR DEL HELICÓPTERO
@@ -488,6 +514,10 @@ public class HelicopterController : MonoBehaviour
             GameHUD.Instance.SetHeadingOverride(cam != null ? cam.transform : transform);
         }
 
+        // Hacer al jugador invulnerable dentro del helicóptero
+        PlayerHealth ph = pilot.GetComponent<PlayerHealth>();
+        if (ph != null) ph.isInVehicle = true;
+
         engineOn = true;
 
         if (startupSound != null)
@@ -510,6 +540,15 @@ public class HelicopterController : MonoBehaviour
 
         isBeingPiloted = false;
         engineOn = false;
+
+        // Detener el helicóptero
+        rb.velocity = Vector3.zero;
+        currentSpeed = 0f;
+        vSpeed = 0f;
+
+        // Quitar invulnerabilidad del vehículo
+        PlayerHealth ph = pilot.GetComponent<PlayerHealth>();
+        if (ph != null) ph.isInVehicle = false;
 
         // Colocar al jugador en posición de salida
         pilot.position = FindExitPosition();
