@@ -49,13 +49,15 @@ public class HelicopterController : MonoBehaviour
 
     [Header("=== MODELO ===")]
     [Tooltip("Offset de yaw para compensar modelos FBX que miran hacia atrás (0 o 180)")]
-    public float modelYawOffset = 180f;
+    public float modelYawOffset = 0f;
 
     [Header("=== ROTORES ===")]
-    [Tooltip("Transform del rotor principal (arriba)")]
+    [Tooltip("Transform del rotor principal (arriba) - Opcional si el modelo no tiene rotores separados")]
     public Transform mainRotor;
-    [Tooltip("Transform del rotor de cola")]
+    [Tooltip("Transform del rotor de cola - Opcional")]
     public Transform tailRotor;
+    [Tooltip("Buscar rotores automáticamente por nombre")]
+    public bool autoFindRotors = true;
     [Tooltip("Velocidad de giro del rotor principal")]
     public float mainRotorSpeed = 1500f;
     [Tooltip("Velocidad de giro del rotor de cola")]
@@ -140,6 +142,12 @@ public class HelicopterController : MonoBehaviour
 
     void Start()
     {
+        // Buscar rotores automáticamente si está activado
+        if (autoFindRotors)
+        {
+            TryFindRotors();
+        }
+        
         // Guardar rotación original del modelo FBX
         initialPitch = transform.eulerAngles.x;
         initialRoll  = transform.eulerAngles.z;
@@ -400,6 +408,60 @@ public class HelicopterController : MonoBehaviour
     // ══════════════════════════════════════════════════════════════════
     //  ROTORES
     // ══════════════════════════════════════════════════════════════════
+
+    void TryFindRotors()
+    {
+        // Nombres comunes para el rotor principal
+        string[] mainRotorNames = { "MainRotor", "Rotor", "TopRotor", "Propeller", "rotor", "main_rotor", "heli_rotor" };
+        // Nombres comunes para el rotor de cola
+        string[] tailRotorNames = { "TailRotor", "BackRotor", "RearRotor", "tail_rotor", "back_rotor" };
+        
+        if (mainRotor == null)
+        {
+            foreach (string name in mainRotorNames)
+            {
+                Transform found = FindChildRecursive(transform, name);
+                if (found != null)
+                {
+                    mainRotor = found;
+                    Debug.Log($"[Helicopter] Rotor principal encontrado: {found.name}");
+                    break;
+                }
+            }
+        }
+        
+        if (tailRotor == null)
+        {
+            foreach (string name in tailRotorNames)
+            {
+                Transform found = FindChildRecursive(transform, name);
+                if (found != null)
+                {
+                    tailRotor = found;
+                    Debug.Log($"[Helicopter] Rotor de cola encontrado: {found.name}");
+                    break;
+                }
+            }
+        }
+        
+        if (mainRotor == null)
+        {
+            Debug.LogWarning("[Helicopter] No se encontró rotor principal. El helicóptero volará pero sin animación de hélices.");
+        }
+    }
+    
+    Transform FindChildRecursive(Transform parent, string name)
+    {
+        foreach (Transform child in parent)
+        {
+            if (child.name.ToLower().Contains(name.ToLower()))
+                return child;
+            Transform found = FindChildRecursive(child, name);
+            if (found != null)
+                return found;
+        }
+        return null;
+    }
 
     void SpinRotors()
     {
