@@ -43,16 +43,36 @@ public class ZombieSpawner : MonoBehaviour
     public int damageIncreaseEveryWaves = 4;
     public float damageBonusPerStep = 5f;
 
-    // ── Zona Infinita ─────────────────────────────────────────
-    [Header("Zona 3 — Zombis Infinitos")]
-    [Tooltip("Máximo de zombis vivos a la vez en la zona infinita")]
-    public int infiniteZoneMaxAlive = 20;
-    [Tooltip("Tiempo entre cada spawn en la zona infinita")]
-    public float infiniteSpawnInterval = 1.5f;
-    [Tooltip("Vida de los zombis en zona infinita (fija, no escala por oleada)")]
-    public float infiniteZoneHealth = 150f;
-    [Tooltip("Daño de los zombis en zona infinita")]
-    public float infiniteZoneDamage = 25f;
+    // ── Zona 3 — Sistema de oleadas especial ──────────────────
+    [Header("Zona 3 — Oleadas con Zombi Especial")]
+    [Tooltip("Máximo de zombis vivos a la vez en Zona 3")]
+    public int zone3MaxZombies = 30;
+    [Tooltip("Cuando queden este nº de zombis, se rellena hasta el máximo")]
+    public int zone3RefillThreshold = 15;
+    [Tooltip("Cada cuántos rellenos aparece el zombi especial")]
+    public int zone3CyclesForSpecial = 3;
+    [Tooltip("Tiempo entre spawns individuales en Zona 3")]
+    public float zone3SpawnInterval = 0.3f;
+
+    [Header("Zona 3 — Stats de zombis normales")]
+    public float zone3BaseHealth = 150f;
+    public float zone3BaseDamage = 25f;
+    [Tooltip("Vida de los zombis DESPUÉS de que aparezca el especial")]
+    public float zone3BoostedHealth = 300f;
+    [Tooltip("Daño de los zombis DESPUÉS de que aparezca el especial")]
+    public float zone3BoostedDamage = 35f;
+
+    [Header("Zona 3 — Zombi Especial")]
+    [Tooltip("Prefab del zombi especial (si vacío usa el zombiePrefab normal pero más grande)")]
+    public GameObject zone3SpecialPrefab;
+    [Tooltip("Vida del zombi especial")]
+    public float zone3SpecialHealth = 1500f;
+    [Tooltip("Daño del zombi especial")]
+    public float zone3SpecialDamage = 50f;
+    [Tooltip("Escala del zombi especial (multiplicador)")]
+    public float zone3SpecialScale = 2f;
+    [Tooltip("Color emisivo del zombi especial para distinguirlo")]
+    public Color zone3SpecialColor = new Color(1f, 0.2f, 0.2f, 1f);
 
     // ── Reubicación ───────────────────────────────────────────
     [Header("Reubicación de Zombis")]
@@ -75,7 +95,9 @@ public class ZombieSpawner : MonoBehaviour
 
     private int currentWave = 0;
     private int aliveZombiesWave = 0;          // zombis de oleada vivos
-    private int aliveZombiesInfinite = 0;      // zombis de zona infinita vivos
+    private int aliveZombiesZone3 = 0;         // zombis de zona 3 vivos
+    private int zone3RefillCount = 0;          // nº de veces que se ha rellenado
+    private bool zone3SpecialAlive = false;    // ¿hay un especial vivo ahora?
     private Transform playerTransform;
 
     private List<ZombieAI> activeZombies = new List<ZombieAI>();
@@ -238,27 +260,33 @@ public class ZombieSpawner : MonoBehaviour
     {
         Debug.Log($"[ZombieSpawner] Jugador cambió de zona: {oldZone} → {newZone}");
 
-        // ── Gestionar zona infinita ──
+        // ── Gestionar zona 3 ──
         bool wasInfinite = (oldZone == SpawnZone.Zona3_Infinitos);
         bool isInfinite  = (newZone == SpawnZone.Zona3_Infinitos);
 
         if (isInfinite && !wasInfinite)
         {
-            // Entró en zona infinita: arrancar spawn continuo
+            // Entró en Zona 3: DESTRUIR TODOS los zombis del mapa
             playerInInfiniteZone = true;
+            DestroyAllZombies();
+
+            // Resetear estado de Zona 3
+            zone3RefillCount = 0;
+            zone3SpecialAlive = false;
+
             if (infiniteSpawnCoroutine == null)
-                infiniteSpawnCoroutine = StartCoroutine(InfiniteSpawnLoop());
+                infiniteSpawnCoroutine = StartCoroutine(Zone3WaveLoop());
         }
         else if (!isInfinite && wasInfinite)
         {
-            // Salió de zona infinita: parar spawn y destruir zombis infinitos
+            // Salió de Zona 3: parar spawn y destruir zombis de zona 3
             playerInInfiniteZone = false;
             if (infiniteSpawnCoroutine != null)
             {
                 StopCoroutine(infiniteSpawnCoroutine);
                 infiniteSpawnCoroutine = null;
             }
-            DestroyInfiniteZombies();
+            DestroyZone3Zombies();
         }
 
         // Los zombis de oleada lejanos se reubicarán solos en el RelocateLoop
@@ -291,20 +319,56 @@ public class ZombieSpawner : MonoBehaviour
     }
 
     // ══════════════════════════════════════════════════════════
-    //  SPAWN LOOP — ZONA INFINITA
+    //  SPAWN LOOP — ZONA 3 (oleadas con especial)
     // ══════════════════════════════════════════════════════════
 
-    IEnumerator InfiniteSpawnLoop()
+    IEnumerator Zone3WaveLoop()
     {
-        Debug.Log("[ZombieSpawner] ¡Zona infinita activada! Spawneando sin parar...");
+        Debug.Log("[ZombieSpawner] ¡Zona 3 activada! Spawneando oleada inicial...");
+
+        // Spawn inicial: llenar hasta zone3MaxZombies
+        yield return StartCoroutine(SpawnZone3Batch(zone3MaxZombies, false));
 
         while (playerInInfiniteZone)
         {
-            if (aliveZombiesInfinite < infiniteZoneMaxAlive)
+            // Esperar hasta que queden 'zone3RefillThreshold' o menos
+            while (aliveZombiesZone3 > zone3RefillThreshold && playerInInfiniteZone)
+                yield return new WaitForSeconds(0.5f);
+
+            if (!playerInInfiniteZone) break;
+
+            zone3RefillCount++;
+            Debug.Log($"[ZombieSpawner] Zona 3 — Relleno #{zone3RefillCount}");
+
+            // ¿Toca zombi especial?
+            bool spawnSpecial = (zone3RefillCount % zone3CyclesForSpecial == 0);
+
+            if (spawnSpecial)
             {
-                SpawnInfiniteZombie();
+                Debug.Log("[ZombieSpawner] ¡¡ZOMBI ESPECIAL!! Boosteando zombis existentes.");
+                // Boostear TODOS los zombis vivos de zona 3
+                BoostZone3Zombies();
+                // Spawnear el especial
+                SpawnZone3Special();
             }
-            yield return new WaitForSeconds(infiniteSpawnInterval);
+
+            // Rellenar hasta el máximo
+            int toSpawn = zone3MaxZombies - aliveZombiesZone3;
+            if (toSpawn > 0)
+                yield return StartCoroutine(SpawnZone3Batch(toSpawn, spawnSpecial));
+        }
+    }
+
+    /// <summary>
+    /// Spawnea un lote de zombis de zona 3 uno a uno con intervalo.
+    /// </summary>
+    IEnumerator SpawnZone3Batch(int count, bool boosted)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            if (!playerInInfiniteZone) break;
+            SpawnZone3Zombie(boosted);
+            yield return new WaitForSeconds(zone3SpawnInterval);
         }
     }
 
@@ -374,26 +438,94 @@ public class ZombieSpawner : MonoBehaviour
     }
 
     // ══════════════════════════════════════════════════════════
-    //  SPAWN — INFINITO
+    //  SPAWN — ZONA 3 (zombi normal)
     // ══════════════════════════════════════════════════════════
 
-    void SpawnInfiniteZombie()
+    void SpawnZone3Zombie(bool boosted)
     {
         if (playerTransform == null) FindPlayer();
 
-        List<ZombieSpawnPoint> infPoints = pointsByZone[SpawnZone.Zona3_Infinitos];
-        if (infPoints.Count == 0) return;
+        List<ZombieSpawnPoint> z3Points = pointsByZone[SpawnZone.Zona3_Infinitos];
+        if (z3Points.Count == 0) return;
 
         ZombieSpawnPoint point = (playerTransform != null)
-            ? GetClosestInList(playerTransform.position, infPoints)
-            : infPoints[Random.Range(0, infPoints.Count)];
+            ? GetClosestInList(playerTransform.position, z3Points)
+            : z3Points[Random.Range(0, z3Points.Count)];
 
         GameObject zombie = SpawnZombieAt(point);
         if (zombie == null) return;
 
-        aliveZombiesInfinite++;
+        aliveZombiesZone3++;
 
-        // Configurar zombi infinito con stats fijos
+        // Configurar zombi de zona 3
+        ZombieWaveMember member = zombie.GetComponent<ZombieWaveMember>();
+        if (member == null) member = zombie.AddComponent<ZombieWaveMember>();
+        member.spawner = this;
+        member.isInfiniteZombie = true; // usa el flag para identificar zombis de zona 3
+
+        float hp  = boosted ? zone3BoostedHealth : zone3BaseHealth;
+        float dmg = boosted ? zone3BoostedDamage  : zone3BaseDamage;
+
+        EnemyHealth eh = zombie.GetComponent<EnemyHealth>();
+        if (eh != null)
+        {
+            eh.useRandomHealth = false;
+            eh.maxHealth = hp;
+            eh.currentHealth = eh.maxHealth;
+        }
+
+        ZombieAI ai = zombie.GetComponent<ZombieAI>();
+        if (ai != null)
+        {
+            ai.damage = dmg;
+            activeZombies.Add(ai);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  SPAWN — ZONA 3 (zombi ESPECIAL)
+    // ══════════════════════════════════════════════════════════
+
+    void SpawnZone3Special()
+    {
+        if (playerTransform == null) FindPlayer();
+
+        List<ZombieSpawnPoint> z3Points = pointsByZone[SpawnZone.Zona3_Infinitos];
+        if (z3Points.Count == 0) return;
+
+        ZombieSpawnPoint point = (playerTransform != null)
+            ? GetClosestInList(playerTransform.position, z3Points)
+            : z3Points[Random.Range(0, z3Points.Count)];
+
+        // Usar prefab especial si existe, si no el normal
+        GameObject prefab = zone3SpecialPrefab != null ? zone3SpecialPrefab : zombiePrefab;
+        if (prefab == null) return;
+
+        Vector3 pos = point.GetRandomSpawnPosition();
+        Quaternion rot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
+        GameObject zombie = Instantiate(prefab, pos, rot);
+        if (zombie == null) return;
+
+        aliveZombiesZone3++;
+
+        // Escala gigante
+        zombie.transform.localScale = Vector3.one * zone3SpecialScale;
+
+        // Color distintivo
+        foreach (Renderer rend in zombie.GetComponentsInChildren<Renderer>())
+        {
+            foreach (Material mat in rend.materials)
+            {
+                mat.color = zone3SpecialColor;
+                if (mat.HasProperty("_EmissionColor"))
+                {
+                    mat.EnableKeyword("_EMISSION");
+                    mat.SetColor("_EmissionColor", zone3SpecialColor * 0.3f);
+                }
+            }
+        }
+
+        // Configurar como miembro de zona 3
         ZombieWaveMember member = zombie.GetComponent<ZombieWaveMember>();
         if (member == null) member = zombie.AddComponent<ZombieWaveMember>();
         member.spawner = this;
@@ -403,16 +535,52 @@ public class ZombieSpawner : MonoBehaviour
         if (eh != null)
         {
             eh.useRandomHealth = false;
-            eh.maxHealth = infiniteZoneHealth;
+            eh.maxHealth = zone3SpecialHealth;
             eh.currentHealth = eh.maxHealth;
         }
 
         ZombieAI ai = zombie.GetComponent<ZombieAI>();
         if (ai != null)
         {
-            ai.damage = infiniteZoneDamage;
+            ai.damage = zone3SpecialDamage;
             activeZombies.Add(ai);
         }
+
+        zone3SpecialAlive = true;
+        Debug.Log($"[ZombieSpawner] ¡ZOMBI ESPECIAL spawneado! Vida={zone3SpecialHealth}, Escala={zone3SpecialScale}");
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  BOOST — Subir vida a zombis existentes de Zona 3
+    // ══════════════════════════════════════════════════════════
+
+    void BoostZone3Zombies()
+    {
+        int boosted = 0;
+        foreach (ZombieAI zombie in activeZombies)
+        {
+            if (zombie == null) continue;
+            ZombieWaveMember member = zombie.GetComponent<ZombieWaveMember>();
+            if (member == null || !member.isInfiniteZombie) continue;
+
+            EnemyHealth eh = zombie.GetComponent<EnemyHealth>();
+            if (eh != null)
+            {
+                // Solo boostear si no es el especial (que ya tiene mucha vida)
+                if (eh.maxHealth < zone3SpecialHealth)
+                {
+                    float oldMax = eh.maxHealth;
+                    eh.maxHealth = zone3BoostedHealth;
+                    // Curar proporcionalmente
+                    float ratio = eh.currentHealth / Mathf.Max(oldMax, 1f);
+                    eh.currentHealth = eh.maxHealth * ratio;
+                }
+            }
+
+            zombie.damage = zone3BoostedDamage;
+            boosted++;
+        }
+        Debug.Log($"[ZombieSpawner] {boosted} zombis boosteados a {zone3BoostedHealth} HP / {zone3BoostedDamage} DMG");
     }
 
     // ══════════════════════════════════════════════════════════
@@ -453,12 +621,12 @@ public class ZombieSpawner : MonoBehaviour
     }
 
     // ══════════════════════════════════════════════════════════
-    //  DESTRUIR ZOMBIS INFINITOS (al salir de la zona)
+    //  DESTRUIR ZOMBIS — ZONA 3 (al salir)
     // ══════════════════════════════════════════════════════════
 
-    void DestroyInfiniteZombies()
+    void DestroyZone3Zombies()
     {
-        Debug.Log("[ZombieSpawner] Saliendo de zona infinita — eliminando zombis infinitos.");
+        Debug.Log("[ZombieSpawner] Saliendo de Zona 3 — eliminando zombis de zona 3.");
 
         for (int i = activeZombies.Count - 1; i >= 0; i--)
         {
@@ -472,7 +640,28 @@ public class ZombieSpawner : MonoBehaviour
                 Destroy(zombie.gameObject);
             }
         }
-        aliveZombiesInfinite = 0;
+        aliveZombiesZone3 = 0;
+        zone3SpecialAlive = false;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  DESTRUIR TODOS LOS ZOMBIS (al entrar en zona 3)
+    // ══════════════════════════════════════════════════════════
+
+    void DestroyAllZombies()
+    {
+        Debug.Log("[ZombieSpawner] Entrando en Zona 3 — ELIMINANDO TODOS los zombis del mapa.");
+
+        for (int i = activeZombies.Count - 1; i >= 0; i--)
+        {
+            ZombieAI zombie = activeZombies[i];
+            if (zombie == null) { activeZombies.RemoveAt(i); continue; }
+            Destroy(zombie.gameObject);
+        }
+        activeZombies.Clear();
+        aliveZombiesWave = 0;
+        aliveZombiesZone3 = 0;
+        zone3SpecialAlive = false;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -598,7 +787,7 @@ public class ZombieSpawner : MonoBehaviour
     public void NotifyZombieDestroyed(bool isInfinite)
     {
         if (isInfinite)
-            aliveZombiesInfinite = Mathf.Max(0, aliveZombiesInfinite - 1);
+            aliveZombiesZone3 = Mathf.Max(0, aliveZombiesZone3 - 1);
         else
             aliveZombiesWave = Mathf.Max(0, aliveZombiesWave - 1);
     }
