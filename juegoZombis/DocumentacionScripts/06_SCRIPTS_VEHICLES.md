@@ -1,6 +1,6 @@
-# � Scripts Vehicles — `Assets/Scripts/Vehicles/`
+# Scripts Vehicles — `Assets/Scripts/Vehicles/`
 
-> 4 scripts que implementan vehículos conducibles: barco y helicóptero.
+> 7 scripts que implementan vehículos conducibles: barco, helicóptero y tanque.
 
 ---
 
@@ -224,3 +224,178 @@ ExitHelicopter() →
 **Interacciones:**
 - → `HelicopterController.EnterHelicopter()` / `ExitHelicopter()`
 - → `HelicopterController.IsBeingPiloted()` / `GetCurrentSpeed()` / `GetAltitude()` / `GetVerticalSpeed()` / `GetRotorPower()`
+
+---
+
+## TankController.cs (~520 líneas)
+
+**Propósito:** Controlador de tanque — movimiento arcade con torreta independiente controlada por ratón y disparo de misiles.
+
+| Elemento | Detalle |
+|----------|---------|
+| **Chasis** | `maxSpeed = 12f`, `acceleration = 8f`, `deceleration = 12f`, `turnSpeed = 40f` |
+| **Turbo** | `turboMultiplier = 1.5f`, `reverseSpeedFraction = 0.4f` |
+| **Torreta** | `turretRotationSpeed = 120f`, `turretSmoothing = 8f`, `autoFindTurret = true` |
+| **Disparo** | `fireRate = 1.5f`, `maxAimDistance = 500f` |
+| **Posiciones** | `driverSeat` (auto-crea), `exitPoint` (auto-crea), `firePoint` (auto-crea) |
+
+### Controles:
+
+| Tecla | Acción |
+|-------|--------|
+| W/S | Avanzar / Retroceder (chasis) |
+| A/D | Girar chasis izquierda / derecha (solo cuando se mueve) |
+| Ratón | Rotar torreta (cabezal) de forma INDEPENDIENTE |
+| Click izquierdo | Disparar misil hacia el punto del raycast |
+| Left Shift | Turbo (×1.5 velocidad) |
+
+### Sistema de torreta:
+- **Clave:** La torreta se mueve INDEPENDIENTEMENTE del chasis
+- El ratón controla la rotación de la torreta (yaw) mediante raycast desde la cámara
+- El chasis se mueve con WASD sin afectar la dirección de la torreta
+- Suavizado con `Mathf.LerpAngle` para rotación fluida
+- Auto-búsqueda por nombres: "Turret", "turret", "Cabezal", "Tower", etc.
+
+### Sistema de disparo:
+- Raycast desde la cámara al mundo para determinar el punto de mira (`aimPoint`)
+- El misil se instancia en `firePoint` orientado hacia `aimPoint`
+- `fireRate = 1.5f` → cadencia entre disparos
+- Si no se asigna `firePoint`, se crea automáticamente en la punta del cañón
+- Auto-busca el cañón por nombres: "Cannon", "Barrel", "Gun", "Canon", etc.
+- Efectos opcionales: `muzzleFlashEffect` (fogonazo), `fireSound` (sonido)
+
+### Sistema de cámara:
+- `cameraFollowsTurret = true` → la cámara sigue la dirección de la torreta
+- Si `false`, sigue el chasis
+- `cameraDistance = 8f`, `cameraHeight = 4f`
+- Suavizado con `cameraSmoothSpeed = 5f`
+
+### Física:
+- Rigidbody con `mass = 2000f` (tanque pesado) y `useGravity = true`
+- Velocidad horizontal aplicada en `FixedUpdate`
+- Giro del chasis invertido automáticamente en marcha atrás
+- Daño por impacto a alta velocidad (`crashSpeedThreshold = 10f`)
+
+### Métodos principales:
+
+| Método | Descripción |
+|--------|------------|
+| `EnterTank(Transform)` | Jugador sube — desactiva CC, FPC, cámara; libera cursor |
+| `ExitTank()` | Jugador baja — restaura todo, busca suelo seguro |
+| `Drive()` | Input WASD, aceleración/frenado, rotación chasis |
+| `RotateTurret()` | Raycast desde cámara, rotación suavizada de la torreta |
+| `HandleShooting()` | Click izquierdo → `FireMissile()` con cadencia |
+| `FireMissile()` | Instancia misil en `firePoint` hacia `aimPoint` |
+| `IsBeingDriven()` → bool | Estado actual |
+| `GetCurrentSpeed()` → float | Velocidad absoluta |
+| `GetTurretAngle()` → float | Ángulo Y de la torreta |
+| `GetAimPoint()` → Vector3 | Punto de mira actual |
+
+### Flujo de entrada al tanque:
+```
+EnterTank(player) →
+  1. Desactiva CharacterController del jugador
+  2. Desactiva FirstPersonController
+  3. Desactiva cámara del jugador
+  4. Activa tankCamera (snap instantáneo)
+  5. Configura GameHUD.SetHeadingOverride()
+  6. Marca jugador como invulnerable (isInVehicle)
+  7. Libera cursor para apuntar torreta
+  8. Sonido de arranque
+```
+
+### Flujo de salida del tanque:
+```
+ExitTank() →
+  1. FindExitPosition() — busca suelo en 8 direcciones
+  2. Teletransporta jugador al punto seguro
+  3. Reactiva CharacterController, FirstPersonController
+  4. Restaura cámaras y AudioListener
+  5. Para motor de audio
+  6. ClearHeadingOverride()
+```
+
+### Gizmos:
+- **Verde:** Asiento del conductor
+- **Amarillo:** Punto de salida
+- **Rojo:** Punto de disparo + dirección
+- **Azul:** Dirección del chasis
+- **Cyan:** Dirección de la torreta
+- **Magenta:** Punto de mira (solo en play)
+
+**Interacciones:**
+- → `FirstPersonController` (desactiva/reactiva)
+- → `CharacterController` (desactiva/reactiva)
+- → `GameHUD.SetHeadingOverride()` (brújula)
+- → `PlayerHealth.TakeDamage()` (daño por impacto)
+- → `PlayerHealth.isInVehicle` (invulnerabilidad)
+- → `MissileController` (instancia misiles)
+- ← `TankInteraction`
+
+---
+
+## MissileController.cs (~170 líneas)
+
+**Propósito:** Controlador de misil — se mueve hacia el objetivo, explota al impactar con daño en área.
+
+| Elemento | Detalle |
+|----------|---------|
+| **Movimiento** | `speed = 60f`, `lifetime = 5f` |
+| **Daño** | `directDamage = 100f`, `explosionDamage = 50f`, `explosionRadius = 5f` |
+| **Fuerza** | `explosionForce = 300f` |
+
+### Comportamiento:
+1. Se instancia orientado hacia el punto de mira
+2. Vuela en línea recta a velocidad constante (`FixedUpdate`)
+3. Al impactar → `Explode()`
+4. Se autodestruye después de `lifetime` segundos si no impacta
+
+### Sistema de explosión:
+- `Physics.OverlapSphere()` detecta objetos en el radio
+- Daño proporcional a la distancia (más cerca = más daño)
+- Impacto directo (dist < 1m) → `directDamage + explosionDamage`
+- `AddExplosionForce()` a rigidbodies cercanos
+- Instancia efecto visual de explosión
+- Sonido de explosión con `AudioSource.PlayClipAtPoint()`
+
+### Efectos opcionales:
+- `explosionEffectPrefab` → partículas de explosión
+- `explosionSound` → sonido de impacto
+- `trailEffect` → estela del misil (se separa al explotar para desvanecerse)
+
+### Métodos principales:
+
+| Método | Descripción |
+|--------|------------|
+| `SetTarget(Vector3)` | Configura punto objetivo (llamado por TankController) |
+| `Explode(Vector3)` | Daño en área + efectos + destruye misil |
+
+**Interacciones:**
+- → `EnemyHealth.TakeDamage()` (daño a enemigos)
+- ← `TankController.FireMissile()` (lo instancia)
+
+---
+
+## TankInteraction.cs (~115 líneas)
+
+**Propósito:** Maneja la interacción del jugador con el tanque (subir/bajar).
+
+| Elemento | Detalle |
+|----------|---------|
+| **Variables** | `interactionRange = 4f`, `interactKey = E`, `exitKey = F` |
+| **Mensajes** | `enterMessage = "Pulsa E - Subir al tanque"`, `exitMessage = "Pulsa F - Bajar del tanque"` |
+| **Búsqueda jugador** | Tag "Player" o `FindObjectOfType<PlayerMoney>()` como fallback |
+
+### Lógica de Update:
+1. Si está conduciendo → escucha F o E para bajar
+2. Si no conduce → mide distancia al tanque → muestra prompt si en rango
+3. Si en rango + E → `tankController.EnterTank(player)`
+
+### OnGUI:
+- **Conduciendo:** muestra mensaje de salida
+- **En rango:** muestra mensaje de entrada
+- Texto con sombra negra para legibilidad
+
+**Interacciones:**
+- → `TankController.EnterTank()` / `ExitTank()`
+- → `TankController.IsBeingDriven()`
