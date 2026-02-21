@@ -55,6 +55,21 @@ MonoBehaviour:
   baseDamage: 20
   damageIncreaseEveryWaves: 4
   damageBonusPerStep: 5
+  zone3MaxZombies: 30
+  zone3RefillThreshold: 15
+  zone3CyclesForSpecial: 3
+  zone3SpawnInterval: 0.3
+  zone3BaseHealth: 150
+  zone3BaseDamage: 25
+  zone3BoostedHealth: 300
+  zone3BoostedDamage: 35
+  zone3SpecialPrefab: {fileID: 2251927773506947415, guid: 5aa5967c9fa735045a276a2b41da9132, type: 3}
+  zone3SpecialHealth: 1500
+  zone3SpecialDamage: 50
+  zone3SpecialScale: 2
+  zone3SpecialColor: {r: 1, g: 0.2, b: 0.2, a: 1}
+  relocateDistance: 70
+  relocateCheckInterval: 2
   waveText: {fileID: 0}
   createWaveTextIfMissing: 1
   wavePrefix: 'Oleada: '

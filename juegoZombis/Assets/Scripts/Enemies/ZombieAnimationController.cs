@@ -34,6 +34,7 @@ public class ZombieAnimationController : MonoBehaviour
     
     private bool isDead = false;
     private bool isCrawling = false;
+    private bool isStunned = false;
     private float lastHitTime = 0f;
     private float groundY = 0f;
     
@@ -60,10 +61,17 @@ public class ZombieAnimationController : MonoBehaviour
     
     private void LateUpdate()
     {
-        // Mantener al zombie en el suelo si esta arrastrándose
-        if (isCrawling && !isDead)
+        // Mantener al zombie anclado al suelo SIEMPRE (vivo o muerto)
+        // para que las animaciones no lo hundan ni lo dejen flotando
+        // Actualizar groundY con un raycast para seguir el terreno real
+        if (Physics.Raycast(transform.position + Vector3.up * 1.5f, Vector3.down, out RaycastHit hit, 5f))
         {
-            Vector3 pos = transform.position;
+            groundY = hit.point.y;
+        }
+
+        Vector3 pos = transform.position;
+        if (Mathf.Abs(pos.y - groundY) > 0.05f)
+        {
             pos.y = groundY;
             transform.position = pos;
         }
@@ -111,27 +119,39 @@ public class ZombieAnimationController : MonoBehaviour
         if (Time.time - lastHitTime < hitCooldown) return;
         lastHitTime = Time.time;
         
-        // Guardar posición Y actual para evitar que el root motion hunda al zombie
-        Vector3 currentPos = transform.position;
-        animator.SetTrigger(isHitHash);
-        
-        // Forzar que mantenga la posición Y
-        StartCoroutine(MaintainYPosition(currentPos.y));
+        // IsHit es un Bool en el AnimatorController, NO un Trigger.
+        // Lo activamos y lo desactivamos tras un tiempo para que el
+        // animator entre al estado Hit y luego vuelva a Locomotion.
+        animator.SetBool(isHitHash, true);
+        isStunned = true;
+        StopAllCoroutines();
+        StartCoroutine(HitStunCoroutine());
     }
     
-    private System.Collections.IEnumerator MaintainYPosition(float targetY)
+    private System.Collections.IEnumerator HitStunCoroutine()
     {
-        float duration = 0.5f; // Duración de la animación de hit
-        float elapsed = 0f;
+        // Esperar a que la transición al estado Hit se active
+        yield return new WaitForSeconds(0.15f);
+        if (animator != null)
+            animator.SetBool(isHitHash, false);
         
-        while (elapsed < duration)
+        // Esperar a que termine la animación de Hit antes de reanudar movimiento
+        // Damos un frame para que el Animator entre al estado Hit
+        yield return null;
+        
+        if (animator != null)
         {
-            elapsed += Time.deltaTime;
-            Vector3 pos = transform.position;
-            pos.y = targetY;
-            transform.position = pos;
-            yield return null;
+            AnimatorStateInfo state = animator.GetCurrentAnimatorStateInfo(0);
+            // Esperar mientras esté en el estado Hit
+            while (state.IsTag("Hit") && state.normalizedTime < 0.85f)
+            {
+                yield return null;
+                if (animator == null) break;
+                state = animator.GetCurrentAnimatorStateInfo(0);
+            }
         }
+        
+        isStunned = false;
     }
     
     public void PlayDeath()
@@ -166,6 +186,7 @@ public class ZombieAnimationController : MonoBehaviour
     
     public bool IsDead => isDead;
     public bool IsCrawling => isCrawling;
+    public bool IsStunned => isStunned;
     
     public void ResetController()
     {

@@ -79,6 +79,16 @@ public class ZombieSpawner : MonoBehaviour
     public float relocateDistance = 70f;
     public float relocateCheckInterval = 2f;
 
+    // ── Anti-spawn en FOV ─────────────────────────────────────
+    [Header("Spawn — No spawnear en visión del jugador")]
+    [Tooltip("Si está activado, los zombis no aparecen dentro del campo de visión de la cámara")]
+    public bool preventSpawnInView = true;
+    [Tooltip("Intentos de buscar una posición fuera del FOV antes de spawnear igualmente")]
+    public int spawnViewRetries = 8;
+    [Tooltip("Margen extra sobre los bordes del viewport (0 = exactamente el FOV, 0.05 = 5% más)")]
+    [Range(0f, 0.3f)]
+    public float viewportMargin = 0.05f;
+
     // ── UI ────────────────────────────────────────────────────
     [Header("UI Oleada")]
     public TextMeshProUGUI waveText;
@@ -159,9 +169,19 @@ public class ZombieSpawner : MonoBehaviour
             return;
         }
 
-        StartCoroutine(SpawnLoop());
+        StartCoroutine(SpawnLoop()); // se pausa solo cuando playerInInfiniteZone=true
         StartCoroutine(RelocateLoop());
         StartCoroutine(ZoneCheckLoop());
+
+        // Si el jugador ya empieza en Zona 3, activarla directamente
+        if (currentPlayerZone == SpawnZone.Zona3_Infinitos)
+        {
+            playerInInfiniteZone = true;
+            zone3RefillCount = 0;
+            zone3SpecialAlive = false;
+            infiniteSpawnCoroutine = StartCoroutine(Zone3WaveLoop());
+            Debug.Log("[ZombieSpawner] Jugador empieza en Zona 3 — activando spawn infinito.");
+        }
     }
 
     void OnDestroy()
@@ -274,8 +294,12 @@ public class ZombieSpawner : MonoBehaviour
             zone3RefillCount = 0;
             zone3SpecialAlive = false;
 
-            if (infiniteSpawnCoroutine == null)
-                infiniteSpawnCoroutine = StartCoroutine(Zone3WaveLoop());
+            if (infiniteSpawnCoroutine != null)
+            {
+                StopCoroutine(infiniteSpawnCoroutine);
+                infiniteSpawnCoroutine = null;
+            }
+            infiniteSpawnCoroutine = StartCoroutine(Zone3WaveLoop());
         }
         else if (!isInfinite && wasInfinite)
         {
@@ -300,6 +324,10 @@ public class ZombieSpawner : MonoBehaviour
     {
         while (true)
         {
+            // Pausar mientras el jugador esté en Zona 3
+            while (playerInInfiniteZone)
+                yield return new WaitForSeconds(1f);
+
             currentWave++;
             int zombiesThisWave = baseZombies + currentWave;
             UpdateWaveUI();
@@ -324,10 +352,12 @@ public class ZombieSpawner : MonoBehaviour
 
     IEnumerator Zone3WaveLoop()
     {
-        Debug.Log("[ZombieSpawner] ¡Zona 3 activada! Spawneando oleada inicial...");
+        Debug.Log($"[ZombieSpawner] ¡Zona 3 activada! Spawneando {zone3MaxZombies} zombis iniciales...");
 
         // Spawn inicial: llenar hasta zone3MaxZombies
         yield return StartCoroutine(SpawnZone3Batch(zone3MaxZombies, false));
+
+        Debug.Log($"[ZombieSpawner] Zona 3 — Batch inicial completado. Vivos: {aliveZombiesZone3}. Esperando que bajen a {zone3RefillThreshold}...");
 
         while (playerInInfiniteZone)
         {
@@ -446,7 +476,12 @@ public class ZombieSpawner : MonoBehaviour
         if (playerTransform == null) FindPlayer();
 
         List<ZombieSpawnPoint> z3Points = pointsByZone[SpawnZone.Zona3_Infinitos];
-        if (z3Points.Count == 0) return;
+        if (z3Points.Count == 0)
+        {
+            Debug.LogError("[ZombieSpawner] ¡NO hay ZombieSpawnPoints con zona=Zona3_Infinitos! " +
+                           "Crea al menos uno en la escena y asígnale la zona Zona3_Infinitos.");
+            return;
+        }
 
         ZombieSpawnPoint point = (playerTransform != null)
             ? GetClosestInList(playerTransform.position, z3Points)
@@ -592,8 +627,96 @@ public class ZombieSpawner : MonoBehaviour
         if (point == null || zombiePrefab == null) return null;
 
         Vector3 pos = point.GetRandomSpawnPosition();
+
+        if (preventSpawnInView)
+        {
+            for (int i = 0; i < spawnViewRetries; i++)
+            {
+                if (!IsVisibleToPlayer(pos)) break;          // posición válida
+                pos = point.GetRandomSpawnPosition();         // probar otra posición
+            }
+            // Si tras todos los intentos sigue visible, spawneamos en el último intento
+            // (mejor que no spawnear nada)
+        }
+
         Quaternion rot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
         return Instantiate(zombiePrefab, pos, rot);
+    }
+
+    /// <summary>
+    /// Devuelve true si la posición worldPos es visible para la cámara del jugador
+    /// (está dentro del viewport Y no hay obstáculo entre la cámara y el punto).
+    /// </summary>
+    bool IsVisibleToPlayer(Vector3 worldPos)
+    {
+        Camera cam = Camera.main;
+        if (cam == null) return false;
+
+        // ── 1. Comprobación de viewport (¿está dentro del FOV?) ──
+        Vector3 vp = cam.WorldToViewportPoint(worldPos);
+
+        // z < 0 significa que está detrás de la cámara → no visible
+        if (vp.z < 0f) return false;
+
+        float margin = viewportMargin;
+        bool inFrustum = vp.x >= -margin && vp.x <= 1f + margin &&
+                         vp.y >= -margin && vp.y <= 1f + margin;
+
+        if (!inFrustum) return false;
+
+        // ── 2. Comprobación de niebla ──────────────────────────────
+        Vector3 camPos   = cam.transform.position;
+        Vector3 dir      = worldPos - camPos;
+        float   distance = dir.magnitude;
+
+        if (RenderSettings.fog)
+        {
+            float fogVisibilityLimit = GetFogVisibilityDistance();
+            if (fogVisibilityLimit > 0f && distance >= fogVisibilityLimit)
+            {
+                // El punto está dentro del frustum pero oculto por la niebla → seguro spawnear
+                return false;
+            }
+        }
+
+        // ── 3. Raycast de oclusión (¿hay algo tapándolo?) ──────────
+        // Si un objeto sólido (que no sea el propio spawner) se interpone, no es visible
+        if (Physics.Raycast(camPos, dir.normalized, out RaycastHit hit, distance))
+        {
+            // hay obstáculo entre la cámara y el punto → posición oculta → seguro spawnear
+            return false;
+        }
+
+        // Está dentro del frustum, sin niebla suficiente y sin obstáculos → VISIBLE
+        return true;
+    }
+
+    /// <summary>
+    /// Devuelve la distancia a partir de la cual la niebla hace que un objeto sea
+    /// prácticamente invisible (≤1% de visibilidad).
+    /// Retorna -1 si la niebla está desactivada o el modo no requiere límite.
+    /// </summary>
+    float GetFogVisibilityDistance()
+    {
+        switch (RenderSettings.fogMode)
+        {
+            case FogMode.Linear:
+                // En niebla lineal, fogEndDistance = opacidad total
+                return RenderSettings.fogEndDistance;
+
+            case FogMode.Exponential:
+                // exp(-d * density) ≤ 0.01  →  d ≥ ln(100) / density ≈ 4.605 / density
+                if (RenderSettings.fogDensity > 0f)
+                    return 4.605f / RenderSettings.fogDensity;
+                break;
+
+            case FogMode.ExponentialSquared:
+                // exp(-(d * density)^2) ≤ 0.01  →  d ≥ sqrt(ln(100)) / density ≈ 2.146 / density
+                if (RenderSettings.fogDensity > 0f)
+                    return 2.146f / RenderSettings.fogDensity;
+                break;
+        }
+        return -1f;
     }
 
     void ConfigureWaveZombie(GameObject zombie)

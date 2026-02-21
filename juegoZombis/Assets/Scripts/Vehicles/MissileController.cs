@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
 /// Controlador de misil — Se mueve en línea recta hacia el punto objetivo.
@@ -14,6 +15,8 @@ public class MissileController : MonoBehaviour
     public float speed = 60f;
     [Tooltip("Tiempo de vida antes de autodestruirse")]
     public float lifetime = 5f;
+    [Tooltip("Offset visual de rotación del modelo (no afecta la dirección de vuelo)")]
+    public Vector3 modelRotationOffset = new Vector3(100f, 0f, 0f);
 
     [Header("=== DAÑO ===")]
     [Tooltip("Daño directo al impactar")]
@@ -44,6 +47,20 @@ public class MissileController : MonoBehaviour
     private Vector3 targetPoint;
     private bool hasTarget;
     private Rigidbody rb;
+    private Vector3 flyDirection; // dirección real de vuelo (independiente de rotación visual)
+    private Collider[] ignoredColliders; // colliders del tanque que disparó
+    private Collider myCollider;
+    private bool armed = false; // el misil no explota hasta estar armado
+
+    /// <summary>
+    /// Asigna el shooter para ignorar sus colliders y no explotar al spawnear.
+    /// Llamar JUSTO después de Instantiate.
+    /// </summary>
+    public void SetShooter(GameObject shooter)
+    {
+        if (shooter == null) return;
+        ignoredColliders = shooter.GetComponentsInChildren<Collider>(true);
+    }
 
     void Start()
     {
@@ -53,49 +70,83 @@ public class MissileController : MonoBehaviour
             rb = gameObject.AddComponent<Rigidbody>();
         }
 
+        // Desactivar collider al inicio — se activa tras salir del tanque
+        myCollider = GetComponent<Collider>();
+        if (myCollider != null)
+            myCollider.enabled = false;
+
         rb.useGravity = false;
         rb.isKinematic = false;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
-        rb.velocity = transform.forward * speed;
+
+        // Guardar dirección real de vuelo ANTES de rotar visualmente
+        flyDirection = transform.forward;
+        rb.velocity = flyDirection * speed;
+
+        // Aplicar offset visual al modelo (no cambia la dirección de vuelo)
+        transform.rotation = transform.rotation * Quaternion.Euler(modelRotationOffset);
+
+        // Armar el misil tras un breve retardo (para salir del tanque)
+        StartCoroutine(ArmMissile());
 
         // Autodestucción por tiempo
         Destroy(gameObject, lifetime);
     }
 
+    IEnumerator ArmMissile()
+    {
+        // Esperar 0.15 segundos para que el misil salga del tanque
+        yield return new WaitForSeconds(0.15f);
+
+        if (myCollider != null)
+        {
+            myCollider.enabled = true;
+
+            // Ignorar colliders del shooter por si aún está cerca
+            if (ignoredColliders != null)
+            {
+                foreach (var col in ignoredColliders)
+                {
+                    if (col != null)
+                        Physics.IgnoreCollision(myCollider, col, true);
+                }
+            }
+        }
+
+        armed = true;
+    }
+
     /// <summary>
     /// Configura el punto objetivo del misil.
     /// Llamado por TankController al instanciar el misil.
+    /// La rotación ya viene correcta desde Instantiate, no la sobreescribimos.
     /// </summary>
     public void SetTarget(Vector3 point)
     {
         targetPoint = point;
         hasTarget = true;
 
-        // Orientar hacia el objetivo
-        Vector3 dir = (targetPoint - transform.position).normalized;
-        if (dir.sqrMagnitude > 0.01f)
-        {
-            transform.rotation = Quaternion.LookRotation(dir);
-        }
+        // La velocidad ya usa flyDirection, no necesitamos cambiar nada
     }
 
     void FixedUpdate()
     {
-        // Mantener velocidad constante en la dirección de avance
+        // Mantener velocidad constante en la dirección de vuelo real
         if (rb != null)
         {
-            rb.velocity = transform.forward * speed;
+            rb.velocity = flyDirection * speed;
         }
     }
 
     void OnCollisionEnter(Collision collision)
     {
+        if (!armed) return;
         Explode(collision.contacts[0].point);
     }
 
     void OnTriggerEnter(Collider other)
     {
-        // También funciona si el collider es trigger
+        if (!armed) return;
         Explode(transform.position);
     }
 

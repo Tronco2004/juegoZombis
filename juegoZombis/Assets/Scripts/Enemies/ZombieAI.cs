@@ -235,6 +235,13 @@ public class ZombieAI : MonoBehaviour
             return;
         }
         
+        // Si está aturdido por un hit, quedarse quieto hasta que termine la animación
+        if (animController != null && animController.IsStunned)
+        {
+            StopMovement();
+            return;
+        }
+        
         // ===== LOGICA DE ESTADOS PARA MANSION =====
         if (isMansionZombie)
         {
@@ -485,6 +492,13 @@ public class ZombieAI : MonoBehaviour
             animController.PlayDeath();
         }
         PlayRandomSound(deathSounds);
+        
+        // Desactivar NavMeshAgent para que el cuerpo caiga al suelo
+        // y no se quede flotando en la posición del NavMesh
+        if (agent != null)
+        {
+            agent.enabled = false;
+        }
     }
     
     /// <summary>

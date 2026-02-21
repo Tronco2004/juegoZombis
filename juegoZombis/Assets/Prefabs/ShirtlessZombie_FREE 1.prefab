@@ -2031,7 +2031,6 @@ GameObject:
   - component: {fileID: 6178333735957405840}
   - component: {fileID: 1062563121848742051}
   - component: {fileID: 3382669999228716063}
-  - component: {fileID: 5331597130469437091}
   - component: {fileID: 3751197297305211507}
   - component: {fileID: 1192232028096804466}
   - component: {fileID: 4589345678544451547}
@@ -2072,7 +2071,7 @@ Animator:
   m_GameObject: {fileID: 5968944603220393573}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: e2c1c24aec0aaa94eb4cb7a2aae271a0, type: 3}
-  m_Controller: {fileID: 9100000, guid: 96b9846a67fe7a044aaa1a260be1b0f6, type: 2}
+  m_Controller: {fileID: 9100000, guid: c6bc3f486d8b7444db01e1790c8fe08c, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
@@ -2113,21 +2112,6 @@ LODGroup:
     - renderer: {fileID: 381710476507696444}
     - renderer: {fileID: 3841533346557962845}
   m_Enabled: 1
---- !u!114 &5331597130469437091
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5968944603220393573}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ca443f106f18a214e8ea1112bbb1a7ac, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  BodyMaterials:
-  - {fileID: 0}
-  eyesGlow: 0
 --- !u!195 &3751197297305211507
 NavMeshAgent:
   m_ObjectHideFlags: 0
@@ -2180,6 +2164,8 @@ MonoBehaviour:
   - cabeza
   - Bip001 Head
   - mixamorig:Head
+  zombieHeight: 2
+  headHeightPercent: 0.25
   useRagdoll: 0
   animator: {fileID: 1062563121848742051}
   ragdollBodies: []
@@ -2221,9 +2207,12 @@ MonoBehaviour:
   groanInterval: 4
   groanIntervalVariation: 2
   maxSoundDistance: 25
+  groanChance: 0.3
   animController: {fileID: 0}
   crawlSpeed: 1.5
   crawlAttackRange: 1.5
+  isMansionZombie: 0
+  proximityAlertRange: 5
 --- !u!65 &332818141412421777
 BoxCollider:
   m_ObjectHideFlags: 0
@@ -2285,15 +2274,15 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   animator: {fileID: 0}
-  walkThreshold: 0.1
-  runThreshold: 2.5
+  speedDampTime: 0.1
+  hitCooldown: 0.5
+  walkAnimationBaseSpeed: 2
+  runAnimationBaseSpeed: 4
+  minAnimSpeed: 0.5
+  maxAnimSpeed: 2
   crawlHealthPercent: 0.25
   enableCrawlSystem: 1
-  attackVariations: 3
-  randomizeAttacks: 1
-  currentState: 0
-  isCrawling: 0
-  isDead: 0
+  crawlAnimSpeed: 1
 --- !u!1 &6115618621623747612
 GameObject:
   m_ObjectHideFlags: 0

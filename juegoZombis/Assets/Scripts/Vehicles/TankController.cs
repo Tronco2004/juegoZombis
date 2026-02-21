@@ -29,6 +29,18 @@ public class TankController : MonoBehaviour
     [Range(0.1f, 1f)]
     public float reverseSpeedFraction = 0.4f;
 
+    [Header("=== COLISIÓN ===")]
+    [Tooltip("Radio de la esfera de colisión frontal del tanque. Ajústalo al ancho/largo del modelo.")]
+    public float tankCollisionRadius = 2.2f;
+    [Tooltip("Altura del origen del SphereCast (desde el suelo)")]
+    public float collisionCheckHeight = 0.8f;
+    [Tooltip("Capas con las que colisiona el tanque. Por defecto todas excepto Triggers.")]
+    public LayerMask collisionMask = ~0;
+    [Tooltip("Máximo ángulo de pendiente que el tanque puede subir (grados)")]
+    public float maxSlopeAngle = 35f;
+    [Tooltip("Máximo que el tanque puede subir por segundo (metros). Evita que trepe edificios.")]
+    public float maxClimbSpeed = 2f;
+
     [Header("=== TORRETA (CABEZAL) ===")]
     [Tooltip("Transform de la torreta — se rota con el ratón de forma independiente al chasis")]
     public Transform turret;
@@ -332,10 +344,82 @@ public class TankController : MonoBehaviour
 
         // ── Mover el tanque (siempre hacia donde mira el chasis) ──
         Vector3 headingDir = Quaternion.Euler(0f, yaw + modelYawOffset, 0f) * Vector3.forward;
-        transform.position += headingDir * currentSpeed * Time.deltaTime;
+        Vector3 rawDelta = headingDir * currentSpeed * Time.deltaTime;
+        Vector3 safeDelta = CheckTankCollision(rawDelta);
+
+        // Si la colisión canceló todo el movimiento, frenar el tanque
+        if (safeDelta.sqrMagnitude < 0.0001f && rawDelta.sqrMagnitude > 0.0001f)
+            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, deceleration * 2f * Time.deltaTime);
+
+        transform.position += safeDelta;
 
         // ── Pegar al suelo con raycast ──
         SnapToGround();
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  DETECCIÓN DE COLISIONES HORIZONTALES
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Comprueba si el movimiento delta chocaría con algo y devuelve
+    /// el movimiento seguro (deslizando a lo largo de la pared si es posible).
+    /// </summary>
+    Vector3 CheckTankCollision(Vector3 delta)
+    {
+        if (delta.sqrMagnitude < 0.0001f) return delta;
+
+        // Desactivar nuestros propios colliders para no detectarlos
+        Collider[] own = GetComponentsInChildren<Collider>(true);
+        foreach (var c in own) c.enabled = false;
+
+        // Desactivar colliders del conductor
+        Collider[] driverCols = null;
+        if (driver != null)
+        {
+            driverCols = driver.GetComponentsInChildren<Collider>(true);
+            foreach (var c in driverCols) c.enabled = false;
+        }
+
+        Vector3 origin = transform.position + Vector3.up * Mathf.Max(collisionCheckHeight, tankCollisionRadius + 0.15f);
+        Vector3 dir    = delta.normalized;
+        float   dist   = delta.magnitude;
+
+        RaycastHit hit;
+        Vector3 result = delta;
+
+        bool blocked = Physics.SphereCast(
+            origin, tankCollisionRadius, dir, out hit, dist,
+            collisionMask, QueryTriggerInteraction.Ignore);
+
+        if (blocked)
+        {
+            // Distancia segura hasta el impacto (sin penetrar)
+            float safeDistance = Mathf.Max(0f, hit.distance - 0.05f);
+
+            // Intento de deslizamiento a lo largo de la pared
+            Vector3 slide = Vector3.ProjectOnPlane(delta, hit.normal);
+            slide.y = 0f; // mantener solo movimiento horizontal
+
+            // Comprobar si el deslizamiento también está bloqueado
+            bool slideBlocked = Physics.SphereCast(
+                origin, tankCollisionRadius, slide.normalized, out _,
+                slide.magnitude, collisionMask, QueryTriggerInteraction.Ignore);
+
+            if (!slideBlocked && slide.sqrMagnitude > 0.0001f)
+                result = slide;
+            else
+                result = dir * safeDistance; // avanzar hasta el contacto y detenerse
+        }
+
+        // Reactivar colliders del conductor
+        if (driverCols != null)
+            foreach (var c in driverCols) c.enabled = true;
+
+        // Reactivar colliders propios
+        foreach (var c in own) c.enabled = true;
+
+        return result;
     }
 
     /// <summary>Lanza un rayo hacia abajo para pegar el tanque al suelo</summary>
@@ -355,14 +439,38 @@ public class TankController : MonoBehaviour
                 col.enabled = false;
         }
 
-        Vector3 rayOrigin = transform.position + Vector3.up * 10f;
+        // Rayo desde poca altura para NO golpear techos/estructuras por encima
+        Vector3 rayOrigin = transform.position + Vector3.up * 2.5f;
         RaycastHit hit;
 
-        if (Physics.Raycast(rayOrigin, Vector3.down, out hit, 50f, ~0, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(rayOrigin, Vector3.down, out hit, 20f, ~0, QueryTriggerInteraction.Ignore))
         {
-            Vector3 pos = transform.position;
-            pos.y = hit.point.y;
-            transform.position = pos;
+            float targetY = hit.point.y;
+            float currentY = transform.position.y;
+            float diff = targetY - currentY;
+
+            // Comprobar el ángulo de la superficie
+            float slopeAngle = Vector3.Angle(hit.normal, Vector3.up);
+
+            if (slopeAngle > maxSlopeAngle && diff > 0.1f)
+            {
+                // Superficie demasiado empinada y el tanque intentaría SUBIR → bloquear
+                // No cambiar Y, y frenar el tanque
+                currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, deceleration * 3f * Time.deltaTime);
+            }
+            else
+            {
+                // Limitar cuánto sube por frame (bajar es libre)
+                if (diff > 0f)
+                {
+                    float maxClimb = maxClimbSpeed * Time.deltaTime;
+                    diff = Mathf.Min(diff, maxClimb);
+                }
+
+                Vector3 pos = transform.position;
+                pos.y = currentY + diff;
+                transform.position = pos;
+            }
         }
 
         // Reactivar colliders del conductor
@@ -460,6 +568,7 @@ public class TankController : MonoBehaviour
         MissileController mc = missile.GetComponent<MissileController>();
         if (mc != null)
         {
+            mc.SetShooter(gameObject); // Ignorar colliders del tanque
             mc.SetTarget(aimPoint);
         }
 
