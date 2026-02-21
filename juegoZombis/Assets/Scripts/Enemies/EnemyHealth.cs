@@ -116,6 +116,14 @@ public class EnemyHealth : MonoBehaviour
     /// </summary>
     public void TakeDamage(float damage, Vector3 hitPoint, bool isHeadshot)
     {
+        TakeDamage(damage, hitPoint, isHeadshot, Vector3.zero);
+    }
+
+    /// <summary>
+    /// Recibir daño con posición del impacto, headshot y normal (para dirección de sangre)
+    /// </summary>
+    public void TakeDamage(float damage, Vector3 hitPoint, bool isHeadshot, Vector3 hitNormal)
+    {
         if (isDead) return;
         
         // Si no se detectó headshot por nombre de hueso, verificar por posición
@@ -159,6 +167,12 @@ public class EnemyHealth : MonoBehaviour
         
         // Mostrar número de daño flotante
         DamagePopup.Create(hitPoint, finalDamage, isHeadshot);
+        
+        // Efecto de sangre en el punto de impacto
+        if (hitNormal.sqrMagnitude > 0.01f)
+            BloodSplashEffect.Spawn(hitPoint, hitNormal);
+        else
+            BloodSplashEffect.Spawn(hitPoint);
         
         // Notificar a la barra de vida
         if (healthBar != null)

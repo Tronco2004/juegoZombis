@@ -23,7 +23,8 @@ public class BulletController : MonoBehaviour
         EnemyHealth enemy = collision.gameObject.GetComponentInParent<EnemyHealth>();
         if (enemy != null)
         {
-            enemy.TakeDamage(speed); // Usa speed como daño base
+            ContactPoint contact = collision.contacts[0];
+            enemy.TakeDamage(speed, contact.point, false);
         }
         
         Destroy(gameObject);

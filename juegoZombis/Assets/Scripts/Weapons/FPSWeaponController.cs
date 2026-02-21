@@ -479,7 +479,7 @@ public class FPSWeaponController : MonoBehaviour
                 Debug.Log($"[HEADSHOT DEBUG] Transform: {hit.transform.name}, Collider: {hit.collider.name}, IsHeadshot: {isHeadshot}");
                 
                 // Aplicar daño con información del headshot
-                enemy.TakeDamage(damage, hit.point, isHeadshot);
+                enemy.TakeDamage(damage, hit.point, isHeadshot, hit.normal);
             }
             
             // Efecto de impacto

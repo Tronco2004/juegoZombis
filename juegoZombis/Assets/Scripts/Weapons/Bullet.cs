@@ -36,7 +36,8 @@ public class Bullet : MonoBehaviour
         EnemyHealth enemy = collision.gameObject.GetComponentInParent<EnemyHealth>();
         if (enemy != null)
         {
-            enemy.TakeDamage(damage);
+            ContactPoint contact = collision.contacts[0];
+            enemy.TakeDamage(damage, contact.point, false);
         }
         
         // Efecto de impacto
