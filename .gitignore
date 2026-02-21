@@ -51,6 +51,17 @@ sysinfo.txt
 # Crashlytics
 crashlytics-build.properties
 
+# Build outputs (carpeta Pruebas y similares)
+[Pp]ruebas/
+*_Data/
+
+# Archivos 3D pesados (>100MB)
+*.obj
+*.fbx.meta
+
+# Bala del cañón (modelo demasiado pesado)
+[Aa]ssets/balaCañon/
+
 # Packed Addressables
 /[Aa]ssets/[Aa]ddressable[Aa]ssets[Dd]ata/*/*.bin*
 
