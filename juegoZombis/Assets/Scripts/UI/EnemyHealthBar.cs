@@ -69,8 +69,10 @@ public class EnemyHealthBar : MonoBehaviour
         if (cam == null) cam = FindCamera();
         if (cam == null) return;
         transform.position = target.position + Vector3.up * heightAboveEnemy;
-        // Billboard: siempre mirar hacia la cámara, con up fijo en Vector3.up para evitar flipping
-        transform.rotation = Quaternion.LookRotation(cam.transform.forward, Vector3.up);
+        // Billboard: rotación correcta usando la dirección real desde la barra hacia la cámara
+        Vector3 dirToCamera = cam.transform.position - transform.position;
+        if (dirToCamera != Vector3.zero)
+            transform.rotation = Quaternion.LookRotation(dirToCamera, Vector3.up);
         float pct = Mathf.Clamp01(health.currentHealth / health.maxHealth);
         float w = (barWidth - 4) * pct;
         fgRect.sizeDelta = new Vector2(w, barHeight - 4);

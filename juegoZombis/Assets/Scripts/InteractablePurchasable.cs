@@ -115,20 +115,17 @@ public class InteractablePurchasable : MonoBehaviour
     {
         Debug.Log($"[VALLA] Intentando comprar {objectName}...");
 
-        if (PlayerMoney.Instance == null)
-        {
-            Debug.LogError("[VALLA] PlayerMoney.Instance es NULL!");
-            return;
-        }
+        PlayerMoney pm = PlayerMoney.GetOrCreate();
+        Debug.Log($"[VALLA] Dinero actual: {pm.currentMoney}, precio: {price}");
 
-        if (!PlayerMoney.Instance.HasEnoughMoney(price))
+        if (!pm.HasEnoughMoney(price))
         {
-            Debug.Log($"[VALLA] Sin dinero! Tienes: {PlayerMoney.Instance.currentMoney}, necesitas: {price}");
+            Debug.Log($"[VALLA] Sin dinero! Tienes: {pm.currentMoney}, necesitas: {price}");
             if (errorSound != null) audioSource.PlayOneShot(errorSound);
             return;
         }
 
-        if (PlayerMoney.Instance.SpendMoney(price))
+        if (pm.SpendMoney(price))
         {
             Debug.Log($"[VALLA] ¡{objectName} COMPRADO! -{price}$");
             if (successSound != null) audioSource.PlayOneShot(successSound);
@@ -193,7 +190,7 @@ public class InteractablePurchasable : MonoBehaviour
         {
             string playerInfo = player != null ? player.name : "NO ENCONTRADO";
             float dist = player != null ? Vector3.Distance(transform.position, player.position) : -1f;
-            string moneyInfo = PlayerMoney.Instance != null ? PlayerMoney.Instance.currentMoney.ToString() : "NULL";
+            string moneyInfo = PlayerMoney.Instance != null ? PlayerMoney.Instance.currentMoney.ToString() : "0 (sin instancia)";
 
             GUI.color = Color.green;
             GUI.Label(new Rect(10, 10, 500, 200),

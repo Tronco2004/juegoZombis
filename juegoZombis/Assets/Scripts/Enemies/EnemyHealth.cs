@@ -286,11 +286,8 @@ public class EnemyHealth : MonoBehaviour
         
         Debug.Log($"[Zombie] ¡Muerto! +{pointsOnKill} puntos");
         
-        // Dar puntos al jugador
-        if (PlayerPoints.Instance != null)
-        {
-            PlayerPoints.Instance.AddPoints(pointsOnKill);
-        }
+        // AddMoney sincroniza automáticamente con PlayerPoints y actualiza la UI
+        PlayerMoney.GetOrCreate().AddMoney(pointsOnKill);
         
         // Sonido de muerte
         if (deathSound != null && audioSource != null)

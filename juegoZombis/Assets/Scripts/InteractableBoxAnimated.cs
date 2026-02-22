@@ -139,14 +139,10 @@ public class InteractableBoxAnimated : MonoBehaviour
 
     void TryPurchase()
     {
-        // Verificar PlayerMoney
-        if (PlayerMoney.Instance == null)
-        {
-            Debug.LogError("[InteractableBox] ERROR: No hay PlayerMoney en la escena. Añade PlayerMoney.cs a tu Player.");
-            return;
-        }
+        PlayerMoney pm = PlayerMoney.GetOrCreate();
+        Debug.Log($"[InteractableBox] Intentando comprar, dinero actual: {pm.currentMoney}, precio: {price}");
 
-        if (PlayerMoney.Instance.SpendMoney(price))
+        if (pm.SpendMoney(price))
         {
             // COMPRA EXITOSA
             Debug.Log("[InteractableBox] ¡Compra exitosa! -$" + price);

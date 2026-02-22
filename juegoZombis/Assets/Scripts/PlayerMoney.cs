@@ -17,7 +17,24 @@ public class PlayerMoney : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
+            DontDestroyOnLoad(gameObject);
         }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    // Asegura que siempre exista una instancia aunque no esté en la escena
+    public static PlayerMoney GetOrCreate()
+    {
+        if (Instance == null)
+        {
+            GameObject go = new GameObject("PlayerMoney_AutoCreado");
+            Instance = go.AddComponent<PlayerMoney>();
+            Debug.LogWarning("[PlayerMoney] No había instancia en la escena, se creó automáticamente. Añade el componente PlayerMoney a un GameObject en la escena para evitar esto.");
+        }
+        return Instance;
     }
     
     void Update()
@@ -34,6 +51,9 @@ public class PlayerMoney : MonoBehaviour
     {
         currentMoney += amount;
         Debug.Log("+" + amount + "$ | Total: $" + currentMoney);
+        // Sincronizar con PlayerPoints para que la UI se actualice
+        if (PlayerPoints.Instance != null)
+            PlayerPoints.Instance.AddPoints(amount);
     }
     
     // Llamar esto cuando el jugador compra algo
@@ -43,6 +63,9 @@ public class PlayerMoney : MonoBehaviour
         {
             currentMoney -= amount;
             Debug.Log("-" + amount + "$ | Total: $" + currentMoney);
+            // Sincronizar con PlayerPoints para que la UI se actualice
+            if (PlayerPoints.Instance != null)
+                PlayerPoints.Instance.SpendPoints(amount);
             return true; // Compra exitosa
         }
         else
