@@ -75,30 +75,12 @@ public class ItemInspector3D : MonoBehaviour
 
     void Start()
     {
-        Debug.Log("[ItemInspector3D] Start() iniciado");
-        SetupInspectorScene();
-        CreateInspectorUI();
-
-        // Suscribirse al evento de inspección
-        if (InventorySystem.Instance != null)
-        {
-            Debug.Log("[ItemInspector3D] Suscribiendo a OnInspectRequested");
-            InventorySystem.Instance.OnInspectRequested += OpenInspection;
-        }
-        else
-        {
-            Debug.LogError("[ItemInspector3D] InventorySystem.Instance es NULL!");
-        }
-
-        // Empezar cerrado
-        SetInspectorActive(false);
+        Debug.Log("[ItemInspector3D] Desactivado — inspección de items eliminada.");
+        enabled = false; // Inspector desactivado permanentemente
     }
 
     void OnDestroy()
     {
-        if (InventorySystem.Instance != null)
-            InventorySystem.Instance.OnInspectRequested -= OpenInspection;
-
         if (renderTexture != null)
             renderTexture.Release();
     }

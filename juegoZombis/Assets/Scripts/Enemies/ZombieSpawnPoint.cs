@@ -1,11 +1,13 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>
-/// Zonas lógicas del mapa. Cada SpawnPoint pertenece a una zona.
+/// Zonas lógicas del mapa.
 /// </summary>
 public enum SpawnZone
 {
-    Zona1,
+    Zona1A,          // Primera sección de la zona 1
+    Zona1B,          // Segunda sección de la zona 1
+    Zona1C,          // Tercera sección de la zona 1
     Zona2,
     Mansion,
     AtrasMansion,
@@ -13,117 +15,107 @@ public enum SpawnZone
 }
 
 /// <summary>
-/// Punto de spawn para zombis. Coloca varios de estos en la escena para definir
-/// las zonas donde pueden aparecer/reaparecer los zombis.
-/// El ZombieSpawner los detecta automáticamente.
+/// Punto exacto donde spawneará un zombi.
+///
+/// SETUP en Unity:
+/// 1. Crea un GameObject vacío y ponle este script.
+/// 2. Colócalo EXACTAMENTE donde quieres que aparezca el zombi.
+/// 3. Asígnale la SpawnZone a la que pertenece.
+/// 4. El ZombieActivationZone de esa zona lo activará automáticamente.
+///
+/// Los zombis spawnean en transform.position exactamente.
+/// Radio opcional para una variación mínima (déjalo en 0 para posición 100% fija).
 /// </summary>
 public class ZombieSpawnPoint : MonoBehaviour
 {
     [Header("Zona")]
-    [Tooltip("¿A qué zona del mapa pertenece este punto de spawn?")]
-    public SpawnZone zone = SpawnZone.Zona1;
+    [Tooltip("Zona a la que pertenece este punto de spawn.")]
+    public SpawnZone zone = SpawnZone.Zona1A;
 
-    [Header("Zona de Spawn")]
-    [Tooltip("Tamaño de la zona rectangular de spawn (ancho X, alto Y, profundidad Z)")]
-    public Vector3 spawnZoneSize = new Vector3(20f, 0f, 20f);
+    [Header("Estado")]
+    [Tooltip("Solo los puntos activos son usados por el spawner. La ZombieActivationZone de esta zona lo controla automáticamente.")]
+    public bool isActive = true;
 
-    [Tooltip("Desplazamiento del centro de la zona respecto al transform")]
-    public Vector3 spawnZoneOffset = Vector3.zero;
+    [Header("Variación (opcional)")]
+    [Tooltip("Radio de variación aleatoria alrededor del punto exacto. 0 = posición fija.")]
+    public float spawnRadius = 0f;
 
-    [Header("Rango de Activación")]
-    [Tooltip("Distancia máxima a la que el jugador 'activa' este punto de spawn. " +
-             "Si el jugador está dentro de este radio, los zombis pueden aparecer aquí.")]
-    public float activationRange = 60f;
+    //  Propiedades 
 
-    [Header("Gizmos")]
-    public Color gizmoColor = new Color(0f, 1f, 0f, 0.25f);
-    public Color rangeGizmoColor = new Color(1f, 1f, 0f, 0.08f);
-
-    /// <summary>
-    /// Centro real de la zona de spawn en coordenadas mundo.
-    /// </summary>
-    public Vector3 Center => transform.position + spawnZoneOffset;
-
-    /// <summary>
-    /// ¿Este spawn point es de la zona infinita (Zona3)?
-    /// </summary>
+    /// <summary>¿Este punto pertenece a la zona infinita?</summary>
     public bool IsInfiniteZone => zone == SpawnZone.Zona3_Infinitos;
 
-    /// <summary>
-    /// Devuelve una posición aleatoria dentro de la zona de spawn.
-    /// </summary>
-    public Vector3 GetRandomSpawnPosition()
+    /// <summary>Devuelve la posición de spawn exacta (con variación opcional).</summary>
+    public Vector3 GetSpawnPosition()
     {
-        Vector3 center = Center;
-        Vector3 half = spawnZoneSize * 0.5f;
+        if (spawnRadius <= 0f)
+            return transform.position;
 
-        float x = Random.Range(center.x - half.x, center.x + half.x);
-        float y = center.y + Random.Range(-half.y, half.y);
-        float z = Random.Range(center.z - half.z, center.z + half.z);
-
-        return new Vector3(x, y, z);
+        Vector2 circle = Random.insideUnitCircle * spawnRadius;
+        return transform.position + new Vector3(circle.x, 0f, circle.y);
     }
 
-    /// <summary>
-    /// ¿Está el jugador dentro del rango de activación de este spawn point?
-    /// </summary>
-    public bool IsPlayerInRange(Vector3 playerPosition)
-    {
-        return Vector3.Distance(Center, playerPosition) <= activationRange;
-    }
+    /// <summary>Alias para compatibilidad con el ZombieSpawner.</summary>
+    public Vector3 GetRandomSpawnPosition() => GetSpawnPosition();
 
-    /// <summary>
-    /// Distancia desde este punto al jugador.
-    /// </summary>
-    public float DistanceTo(Vector3 position)
-    {
-        return Vector3.Distance(Center, position);
-    }
+    /// <summary>Distancia desde este punto a una posición.</summary>
+    public float DistanceTo(Vector3 position) => Vector3.Distance(transform.position, position);
 
-    // ─── Gizmos ───────────────────────────────────────────────
+    /// <summary>El jugador siempre está "en rango" si la zona se gestiona por triggers.</summary>
+    public bool IsPlayerInRange(Vector3 playerPosition) => true;
 
-    /// <summary>
-    /// Color automático según zona para distinguirlas fácil en el editor.
-    /// </summary>
-    Color GetZoneGizmoColor()
+    //  Gizmos 
+
+    Color GetZoneColor()
     {
         switch (zone)
         {
-            case SpawnZone.Zona1:           return new Color(0f, 1f, 0f, 0.25f);    // Verde
-            case SpawnZone.Zona2:           return new Color(0f, 0.5f, 1f, 0.25f);  // Azul
-            case SpawnZone.Mansion:         return new Color(1f, 0.5f, 0f, 0.25f);  // Naranja
-            case SpawnZone.AtrasMansion:    return new Color(0.8f, 0f, 0.8f, 0.25f);// Púrpura
-            case SpawnZone.Zona3_Infinitos: return new Color(1f, 0f, 0f, 0.35f);    // Rojo intenso
-            default:                        return gizmoColor;
+            case SpawnZone.Zona1A:          return new Color(0.0f, 1.0f, 0.2f, 0.9f);  // verde vivo
+            case SpawnZone.Zona1B:          return new Color(0.2f, 0.8f, 0.0f, 0.9f);  // verde medio
+            case SpawnZone.Zona1C:          return new Color(0.5f, 1.0f, 0.0f, 0.9f);  // verde lima
+            case SpawnZone.Zona2:           return new Color(0.0f, 0.5f, 1.0f, 0.9f);
+            case SpawnZone.Mansion:         return new Color(1.0f, 0.5f, 0.0f, 0.9f);
+            case SpawnZone.AtrasMansion:    return new Color(0.8f, 0.0f, 0.8f, 0.9f);
+            case SpawnZone.Zona3_Infinitos: return new Color(1.0f, 0.0f, 0.0f, 0.9f);
+            default:                        return Color.white;
         }
     }
 
     void OnDrawGizmos()
     {
-        Color zoneColor = GetZoneGizmoColor();
-        zoneColor.a *= 0.5f;
-        Gizmos.color = zoneColor;
-        Gizmos.DrawCube(Center, spawnZoneSize);
+        Color c = GetZoneColor();
+        // Punto inactivo: se dibuja gris y semitransparente
+        if (!isActive) c = new Color(0.4f, 0.4f, 0.4f, 0.35f);
+        else c.a = 0.85f;
+        Gizmos.color = c;
+
+        // Cruz indicando la posición exacta
+        float s = 0.4f;
+        Vector3 p = transform.position;
+        Gizmos.DrawLine(p + Vector3.left  * s, p + Vector3.right   * s);
+        Gizmos.DrawLine(p + Vector3.back  * s, p + Vector3.forward * s);
+        Gizmos.DrawLine(p + Vector3.down  * s, p + Vector3.up      * s);
+        Gizmos.DrawSphere(p, 0.18f);
+
+        if (spawnRadius > 0f)
+        {
+            c.a = 0.12f;
+            Gizmos.color = c;
+            Gizmos.DrawSphere(p, spawnRadius);
+        }
     }
 
     void OnDrawGizmosSelected()
     {
-        Color zoneColor = GetZoneGizmoColor();
+        Color c = GetZoneColor();
+        Gizmos.color = c;
+        Gizmos.DrawSphere(transform.position, 0.28f);
 
-        // Zona de spawn sólida
-        Gizmos.color = zoneColor;
-        Gizmos.DrawCube(Center, spawnZoneSize);
-
-        // Borde de la zona
-        Color wire = zoneColor;
-        wire.a = 1f;
-        Gizmos.color = wire;
-        Gizmos.DrawWireCube(Center, spawnZoneSize);
-
-        // Radio de activación
-        Color range = rangeGizmoColor;
-        if (IsInfiniteZone) range = new Color(1f, 0f, 0f, 0.12f);
-        Gizmos.color = range;
-        Gizmos.DrawWireSphere(Center, activationRange);
+        if (spawnRadius > 0f)
+        {
+            c.a = 0.25f;
+            Gizmos.color = c;
+            Gizmos.DrawWireSphere(transform.position, spawnRadius);
+        }
     }
 }

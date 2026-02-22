@@ -211,6 +211,7 @@ MonoBehaviour:
   crawlSpeed: 1.5
   crawlAttackRange: 1.5
   isMansionZombie: 0
+  spawnZone: 0
   proximityAlertRange: 5
 --- !u!65 &5254122273687830582
 BoxCollider:

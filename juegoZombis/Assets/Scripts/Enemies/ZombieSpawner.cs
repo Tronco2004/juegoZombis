@@ -89,6 +89,9 @@ public class ZombieSpawner : MonoBehaviour
     [Range(0f, 0.3f)]
     public float viewportMargin = 0.05f;
 
+    [Tooltip("Distancia máxima en metros entre el punto de spawn y el jugador. Spawns más lejos se cancelan para evitar zombis dispersos.")]
+    public float maxSpawnDistanceToPlayer = 200f;
+
     // ── UI ────────────────────────────────────────────────────
     [Header("UI Oleada")]
     public TextMeshProUGUI waveText;
@@ -108,6 +111,8 @@ public class ZombieSpawner : MonoBehaviour
     private int aliveZombiesZone3 = 0;         // zombis de zona 3 vivos
     private int zone3RefillCount = 0;          // nº de veces que se ha rellenado
     private bool zone3SpecialAlive = false;    // ¿hay un especial vivo ahora?
+    private int _waveSpawnIndex = 0;           // reservado (ya no se usa, sustituido por _spawnQueue)
+    private Queue<ZombieSpawnPoint> _spawnQueue = new Queue<ZombieSpawnPoint>();
     private Transform playerTransform;
 
     private List<ZombieAI> activeZombies = new List<ZombieAI>();
@@ -155,8 +160,9 @@ public class ZombieSpawner : MonoBehaviour
         // Jugador
         FindPlayer();
 
-        // Detectar zona inicial
-        currentPlayerZone = DetectPlayerZone();
+        // Zona inicial: la zona del punto de spawn más cercano al jugador.
+        // Los ZombieActivationZone actualizarán esto en runtime via triggers.
+        currentPlayerZone = GetFallbackZone();
         Debug.Log($"[ZombieSpawner] Zona inicial del jugador: {currentPlayerZone}");
 
         // UI
@@ -217,60 +223,64 @@ public class ZombieSpawner : MonoBehaviour
     /// Comprueba continuamente en qué zona está el jugador.
     /// Si cambia de zona, gestiona la transición (parar/arrancar infinitos, etc.).
     /// </summary>
+    // ─── Sistema de zonas por trigger ────────────────────────────────────────
+
+    /// <summary>
+    /// Llamado por ZombieActivationZone cuando el jugador entra en un trigger.
+    /// Cambia la zona activa del spawner.
+    /// </summary>
+    public void NotifyZoneEntered(SpawnZone zone)
+    {
+        if (zone == currentPlayerZone) return;
+        Debug.Log($"[ZombieSpawner] NotifyZoneEntered: {currentPlayerZone} → {zone}");
+        OnPlayerChangedZone(currentPlayerZone, zone);
+        currentPlayerZone = zone;
+    }
+
+    /// <summary>
+    /// Llamado por ZombieActivationZone cuando el jugador sale de un trigger.
+    /// Vuelve a la zona del spawn point físicamente más cercano como fallback.
+    /// </summary>
+    public void NotifyZoneExited(SpawnZone zone)
+    {
+        // Solo actuamos si salimos de la zona actualmente activa
+        if (zone != currentPlayerZone) return;
+
+        // Fallback: zona del punto de spawn más cercano al jugador
+        SpawnZone fallback = GetFallbackZone();
+        Debug.Log($"[ZombieSpawner] NotifyZoneExited: {zone} → fallback {fallback}");
+        OnPlayerChangedZone(currentPlayerZone, fallback);
+        currentPlayerZone = fallback;
+    }
+
+    /// <summary>
+    /// Devuelve la zona del punto de spawn más cercano al jugador (usado como fallback).
+    /// </summary>
+    SpawnZone GetFallbackZone()
+    {
+        if (playerTransform == null) return SpawnZone.Zona1A;
+
+        Vector3 pos = playerTransform.position;
+        ZombieSpawnPoint closest = GetClosestSpawnPoint(pos);
+        return closest != null ? closest.zone : SpawnZone.Zona1A;
+    }
+
+    // ─── Loop de comprobación (solo para mantener playerTransform válido) ─────
+
     IEnumerator ZoneCheckLoop()
     {
         yield return new WaitForSeconds(0.5f);
 
         while (true)
         {
-            yield return new WaitForSeconds(1f);
+            yield return new WaitForSeconds(2f);
 
+            // Únicamente nos aseguramos de tener la referencia al jugador
             if (playerTransform == null)
             {
                 FindPlayer();
-                continue;
-            }
-
-            SpawnZone newZone = DetectPlayerZone();
-            if (newZone != currentPlayerZone)
-            {
-                OnPlayerChangedZone(currentPlayerZone, newZone);
-                currentPlayerZone = newZone;
             }
         }
-    }
-
-    /// <summary>
-    /// Detecta la zona actual del jugador basándose en qué SpawnPoint
-    /// tiene al jugador dentro de su rango de activación (el más cercano gana).
-    /// </summary>
-    SpawnZone DetectPlayerZone()
-    {
-        if (playerTransform == null) return currentPlayerZone;
-
-        Vector3 pos = playerTransform.position;
-        ZombieSpawnPoint closest = null;
-        float minDist = float.MaxValue;
-
-        foreach (var point in spawnPoints)
-        {
-            if (point == null) continue;
-            if (!point.IsPlayerInRange(pos)) continue;
-
-            float d = point.DistanceTo(pos);
-            if (d < minDist)
-            {
-                minDist = d;
-                closest = point;
-            }
-        }
-
-        // Si está en rango de alguno, usa su zona
-        if (closest != null) return closest.zone;
-
-        // Si no está en rango de ninguno, devolver la zona del punto más cercano
-        closest = GetClosestSpawnPoint(pos);
-        return closest != null ? closest.zone : currentPlayerZone;
     }
 
     /// <summary>
@@ -328,22 +338,75 @@ public class ZombieSpawner : MonoBehaviour
             while (playerInInfiniteZone)
                 yield return new WaitForSeconds(1f);
 
+            // Esperar a que haya al menos un spawn point activo antes de iniciar la oleada
+            bool hasActivePoints = false;
+            while (!hasActivePoints)
+            {
+                foreach (var p in spawnPoints)
+                {
+                    if (p != null && p.isActive) { hasActivePoints = true; break; }
+                }
+                if (!hasActivePoints)
+                    yield return new WaitForSeconds(1f);
+            }
+
             currentWave++;
+            _waveSpawnIndex = 0;
+            aliveZombiesWave = 0;  // limpiar contador por si hay residuo de la oleada anterior
             int zombiesThisWave = baseZombies + currentWave;
             UpdateWaveUI();
 
-            for (int i = 0; i < zombiesThisWave; i++)
+            // Construir cola barajada con distribución uniforme entre spawn points
+            BuildSpawnQueue(zombiesThisWave);
+
+            Debug.Log($"[ZombieSpawner] === OLEADA {currentWave} === Zombis: {zombiesThisWave}, Puntos en cola: {_spawnQueue.Count}");
+
+            // Spawnear exactamente zombiesThisWave zombis.
+            // Si un intento falla, NO avanzamos el contador — reintentamos en el siguiente tick.
+            int spawned = 0;
+            while (spawned < zombiesThisWave)
             {
+                if (playerInInfiniteZone) break;
+
+                // Esperar si no hay puntos activos
+                while (!playerInInfiniteZone && !HasActiveSpawnPoints())
+                    yield return new WaitForSeconds(1f);
+
+                if (playerInInfiniteZone) break;
+
+                int antesDeSpawn = aliveZombiesWave;
                 SpawnWaveZombie();
-                yield return new WaitForSeconds(timeBetweenSpawns);
+
+                // Solo avanzar el contador si realmente se creó un zombi
+                if (aliveZombiesWave > antesDeSpawn)
+                {
+                    spawned++;
+                    Debug.Log($"[ZombieSpawner] Spawneado {spawned}/{zombiesThisWave}");
+                    yield return new WaitForSeconds(timeBetweenSpawns);
+                }
+                else
+                {
+                    // Spawn fallido — esperar un poco antes de reintentar
+                    yield return new WaitForSeconds(0.5f);
+                }
             }
 
-            // Esperar a que mueran todos los de oleada
+            Debug.Log($"[ZombieSpawner] Oleada {currentWave} completada. Esperando que mueran {aliveZombiesWave} zombis...");
+
+            // Esperar a que mueran todos
             while (aliveZombiesWave > 0)
                 yield return null;
 
+            Debug.Log($"[ZombieSpawner] Oleada {currentWave} limpia. Siguiente en {timeBetweenWaves}s.");
             yield return new WaitForSeconds(timeBetweenWaves);
         }
+    }
+
+    bool HasActiveSpawnPoints()
+    {
+        foreach (var p in spawnPoints)
+            if (p != null && p.isActive) return true;
+        return false;
     }
 
     // ══════════════════════════════════════════════════════════
@@ -418,19 +481,24 @@ public class ZombieSpawner : MonoBehaviour
 
             Vector3 playerPos = playerTransform.position;
 
-            // Buscar el spawn point más cercano al jugador de su zona actual (no infinita)
-            ZombieSpawnPoint target = GetClosestSpawnPointInZone(playerPos, currentPlayerZone);
-            if (target == null) target = GetClosestSpawnPoint(playerPos);
-            if (target == null) continue;
-
             for (int i = activeZombies.Count - 1; i >= 0; i--)
             {
                 ZombieAI zombie = activeZombies[i];
                 if (zombie == null) { activeZombies.RemoveAt(i); continue; }
 
+                // Los zombis de mansión son independientes: nunca los reubicamos
+                if (zombie.isMansionZombie) continue;
+
                 float dist = Vector3.Distance(zombie.transform.position, playerPos);
                 if (dist > relocateDistance)
                 {
+                    // Reubicar al spawn point más cercano de SU PROPIA zona
+                    // activeOnly=false: puede ir a un punto inactivo, solo espera allí
+                    ZombieSpawnPoint target = GetClosestInList(zombie.transform.position,
+                        pointsByZone.ContainsKey(zombie.spawnZone) ? pointsByZone[zombie.spawnZone] : spawnPoints,
+                        activeOnly: false);
+                    if (target == null) target = GetClosestInList(zombie.transform.position, spawnPoints, false);
+                    if (target == null) continue;
                     RelocateZombie(zombie, target);
                 }
             }
@@ -443,28 +511,96 @@ public class ZombieSpawner : MonoBehaviour
 
     void SpawnWaveZombie()
     {
-        if (playerTransform == null) FindPlayer();
-
-        // Elegir punto en la zona actual del jugador (excluyendo infinita)
-        SpawnZone targetZone = currentPlayerZone;
-        if (targetZone == SpawnZone.Zona3_Infinitos)
+        // Si la cola está vacía, reconstruir con 1 entry (puede pasar si cambió la zona a mitad de oleada)
+        if (_spawnQueue.Count == 0)
         {
-            // Si el jugador está en la zona infinita, spawnear oleada en la zona normal más cercana
-            targetZone = GetClosestNonInfiniteZone();
+            BuildSpawnQueue(1);
+            if (_spawnQueue.Count == 0)
+            {
+                Debug.LogWarning("[ZombieSpawner] SpawnWaveZombie: cola vacía y sin puntos activos.");
+                return;
+            }
         }
 
-        ZombieSpawnPoint point = (playerTransform != null)
-            ? GetClosestSpawnPointInZone(playerTransform.position, targetZone)
-            : GetRandomPointInZone(targetZone);
+        ZombieSpawnPoint point = _spawnQueue.Dequeue();
 
-        if (point == null) point = GetClosestSpawnPoint(playerTransform != null ? playerTransform.position : transform.position);
-        if (point == null) return;
+        // Verificar que el punto sigue activo (puede haberse desactivado mientras esperaba)
+        if (point == null || !point.isActive)
+        {
+            ZombieSpawnPoint fallback = spawnPoints.Find(p => p != null && p.isActive);
+            if (fallback == null)
+            {
+                Debug.LogWarning("[ZombieSpawner] SpawnWaveZombie: punto inactivo y sin fallback.");
+                return;
+            }
+            point = fallback;
+        }
+
+        Debug.Log($"[ZombieSpawner] Spawneando en '{point.name}' (zona {point.zone}) | Cola restante: {_spawnQueue.Count}");
 
         GameObject zombie = SpawnZombieAt(point);
-        if (zombie == null) return;
+        if (zombie == null)
+        {
+            Debug.LogWarning($"[ZombieSpawner] SpawnZombieAt devolvió null para '{point.name}'.");
+            return;
+        }
 
         aliveZombiesWave++;
         ConfigureWaveZombie(zombie);
+    }
+
+    /// <summary>
+    /// Construye una cola barajada de spawn points con distribución uniforme.
+    /// Si hay 10 zombis y 3 puntos: cada punto recibe ~3-4 entradas, luego todo se baraja.
+    /// </summary>
+    void BuildSpawnQueue(int totalZombies)
+    {
+        _spawnQueue.Clear();
+
+        // Zona objetivo
+        SpawnZone targetZone = currentPlayerZone == SpawnZone.Zona3_Infinitos
+            ? GetClosestNonInfiniteZone() : currentPlayerZone;
+
+        // Puntos activos de la zona
+        List<ZombieSpawnPoint> activePoints = null;
+        if (pointsByZone.ContainsKey(targetZone))
+            activePoints = pointsByZone[targetZone].FindAll(p => p != null && p.isActive);
+
+        if (activePoints == null || activePoints.Count == 0)
+            activePoints = spawnPoints.FindAll(p => p != null && p.isActive);
+
+        if (activePoints == null || activePoints.Count == 0)
+        {
+            Debug.LogWarning($"[ZombieSpawner] BuildSpawnQueue: no hay puntos activos para zona {targetZone}.");
+            return;
+        }
+
+        // Distribución uniforme: cada punto recibe floor(total/n) entradas;
+        // el resto (total % n) se añade uno a uno a los primeros puntos
+        List<ZombieSpawnPoint> flat = new List<ZombieSpawnPoint>(totalZombies);
+        int perPoint  = totalZombies / activePoints.Count;
+        int remainder = totalZombies % activePoints.Count;
+
+        for (int i = 0; i < activePoints.Count; i++)
+        {
+            int count = perPoint + (i < remainder ? 1 : 0);
+            for (int j = 0; j < count; j++)
+                flat.Add(activePoints[i]);
+        }
+
+        // Fisher-Yates shuffle para orden aleatorio
+        for (int i = flat.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            ZombieSpawnPoint tmp = flat[i];
+            flat[i] = flat[j];
+            flat[j] = tmp;
+        }
+
+        foreach (var p in flat)
+            _spawnQueue.Enqueue(p);
+
+        Debug.Log($"[ZombieSpawner] Cola construida: {_spawnQueue.Count} zombis repartidos entre {activePoints.Count} puntos activos.");
     }
 
     // ══════════════════════════════════════════════════════════
@@ -537,10 +673,12 @@ public class ZombieSpawner : MonoBehaviour
         if (prefab == null) return;
 
         Vector3 pos = point.GetRandomSpawnPosition();
+
         Quaternion rot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
         GameObject zombie = Instantiate(prefab, pos, rot);
         if (zombie == null) return;
 
+        StripLODGroups(zombie);
         aliveZombiesZone3++;
 
         // Escala gigante
@@ -578,6 +716,7 @@ public class ZombieSpawner : MonoBehaviour
         if (ai != null)
         {
             ai.damage = zone3SpecialDamage;
+            ai.spawnZone = point.zone;
             activeZombies.Add(ai);
         }
 
@@ -628,19 +767,39 @@ public class ZombieSpawner : MonoBehaviour
 
         Vector3 pos = point.GetRandomSpawnPosition();
 
-        if (preventSpawnInView)
+        // ── Anti-spawn en FOV ──────────────────────────────────
+        // Solo tiene sentido si el punto tiene radio (posición variable).
+        // Con spawnRadius=0 el punto es fijo: reintentar no sirve de nada.
+        if (preventSpawnInView && point.spawnRadius > 0f)
         {
             for (int i = 0; i < spawnViewRetries; i++)
             {
-                if (!IsVisibleToPlayer(pos)) break;          // posición válida
-                pos = point.GetRandomSpawnPosition();         // probar otra posición
+                if (!IsVisibleToPlayer(pos)) break;
+                pos = point.GetRandomSpawnPosition();
             }
-            // Si tras todos los intentos sigue visible, spawneamos en el último intento
-            // (mejor que no spawnear nada)
+        }
+
+        // ── Distancia MÁXIMA al jugador ───────────────────────
+        if (playerTransform != null &&
+            Vector3.Distance(pos, playerTransform.position) > maxSpawnDistanceToPlayer)
+        {
+            Debug.LogWarning($"[ZombieSpawner] Spawn cancelado: punto '{point.name}' está a más de "
+                + maxSpawnDistanceToPlayer + "m del jugador.");
+            return null;
         }
 
         Quaternion rot = Quaternion.Euler(0f, Random.Range(0f, 360f), 0f);
-        return Instantiate(zombiePrefab, pos, rot);
+        GameObject spawnedObj = Instantiate(zombiePrefab, pos, rot);
+
+        // Asignar zona al ZombieAI para poder reubicarlo correctamente después
+        if (spawnedObj != null)
+        {
+            StripLODGroups(spawnedObj);
+            ZombieAI spawnedAI = spawnedObj.GetComponent<ZombieAI>();
+            if (spawnedAI != null) spawnedAI.spawnZone = point.zone;
+        }
+
+        return spawnedObj;
     }
 
     /// <summary>
@@ -773,15 +932,19 @@ public class ZombieSpawner : MonoBehaviour
 
     void DestroyAllZombies()
     {
-        Debug.Log("[ZombieSpawner] Entrando en Zona 3 — ELIMINANDO TODOS los zombis del mapa.");
+        Debug.Log("[ZombieSpawner] Entrando en Zona 3 — ELIMINANDO TODOS los zombis del mapa (excepto mansión).");
 
         for (int i = activeZombies.Count - 1; i >= 0; i--)
         {
             ZombieAI zombie = activeZombies[i];
             if (zombie == null) { activeZombies.RemoveAt(i); continue; }
+
+            // Los zombis de mansión son completamente independientes: no tocarlos
+            if (zombie.isMansionZombie) continue;
+
+            activeZombies.RemoveAt(i);
             Destroy(zombie.gameObject);
         }
-        activeZombies.Clear();
         aliveZombiesWave = 0;
         aliveZombiesZone3 = 0;
         zone3SpecialAlive = false;
@@ -827,17 +990,22 @@ public class ZombieSpawner : MonoBehaviour
     ZombieSpawnPoint GetRandomPointInZone(SpawnZone zone)
     {
         if (!pointsByZone.ContainsKey(zone) || pointsByZone[zone].Count == 0) return null;
-        var list = pointsByZone[zone];
-        return list[Random.Range(0, list.Count)];
+        // Solo puntos activos
+        var active = pointsByZone[zone].FindAll(p => p != null && p.isActive);
+        if (active.Count == 0) return null;
+        return active[Random.Range(0, active.Count)];
     }
 
-    ZombieSpawnPoint GetClosestInList(Vector3 position, List<ZombieSpawnPoint> list)
+    /// <param name="activeOnly">Si true (por defecto), ignora los puntos con isActive=false.
+    /// Usar false en reubicación de zombis para que vuelvan a su punto aunque esté inactivo.</param>
+    ZombieSpawnPoint GetClosestInList(Vector3 position, List<ZombieSpawnPoint> list, bool activeOnly = true)
     {
         ZombieSpawnPoint closest = null;
         float minDist = float.MaxValue;
         foreach (var p in list)
         {
             if (p == null) continue;
+            if (activeOnly && !p.isActive) continue;   // saltar puntos inactivos al spawnear
             float d = p.DistanceTo(position);
             if (d < minDist) { minDist = d; closest = p; }
         }
@@ -849,7 +1017,7 @@ public class ZombieSpawner : MonoBehaviour
     /// </summary>
     SpawnZone GetClosestNonInfiniteZone()
     {
-        if (playerTransform == null) return SpawnZone.Zona1;
+        if (playerTransform == null) return SpawnZone.Zona1A;
 
         Vector3 pos = playerTransform.position;
         ZombieSpawnPoint best = null;
@@ -862,7 +1030,7 @@ public class ZombieSpawner : MonoBehaviour
             if (d < minDist) { minDist = d; best = p; }
         }
 
-        return best != null ? best.zone : SpawnZone.Zona1;
+        return best != null ? best.zone : SpawnZone.Zona1A;
     }
 
     /// <summary>
@@ -970,5 +1138,39 @@ public class ZombieSpawner : MonoBehaviour
         waveText.color = waveTextColor;
         waveText.alignment = TextAlignmentOptions.TopLeft;
         waveText.text = wavePrefix + "0";
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  STRIP LOD GROUPS — Eliminar LODs con materiales rotos
+    // ══════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Elimina los LODGroup del zombi instanciado para evitar que LOD1/LOD2
+    /// (que no tienen materiales asignados) se muestren blancos a distancia.
+    /// Solo mantiene los renderers de LOD0, destruye los de LOD1/2.
+    /// </summary>
+    void StripLODGroups(GameObject zombie)
+    {
+        LODGroup[] lodGroups = zombie.GetComponentsInChildren<LODGroup>();
+        if (lodGroups == null || lodGroups.Length == 0) return;
+
+        foreach (LODGroup lodGroup in lodGroups)
+        {
+            LOD[] lods = lodGroup.GetLODs();
+
+            // Destruir los renderers de LOD1, LOD2, etc. (todo excepto LOD0)
+            for (int i = 1; i < lods.Length; i++)
+            {
+                if (lods[i].renderers == null) continue;
+                foreach (Renderer rend in lods[i].renderers)
+                {
+                    if (rend != null)
+                        Destroy(rend.gameObject);
+                }
+            }
+
+            // Eliminar el componente LODGroup
+            Destroy(lodGroup);
+        }
     }
 }

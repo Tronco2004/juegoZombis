@@ -3,10 +3,9 @@ using UnityEngine.UI;
 using TMPro;
 
 /// <summary>
-/// Barra de inventario estilo Fortnite — 5 slots horizontales en la parte inferior de la pantalla.
+/// Barra de inventario estilo Fortnite — 4 slots horizontales en la parte inferior de la pantalla.
 ///   Slot 0-1 → Armas
-///   Slot 2   → Granadas
-///   Slot 3-4 → Items / Notas
+///   Slot 2-3 → Items / Notas
 ///
 /// Se crea enteramente por código, no necesita prefabs.
 /// Ponlo en el mismo GameObject que InventorySystem (o en el jugador).
@@ -24,14 +23,11 @@ public class InventoryBarUI : MonoBehaviour
     public float bottomMargin = 20f;
     [Tooltip("Grosor del borde")]
     public float borderWidth = 3f;
-    [Tooltip("Tecla para abrir/cerrar inspección de item")]
-    public KeyCode inspectKey = KeyCode.Tab;
 
     [Header("=== COLORES ===")]
     public Color barBackgroundColor = new Color(0.05f, 0.05f, 0.05f, 0.5f);
     public Color slotEmptyColor = new Color(0.15f, 0.15f, 0.15f, 0.65f);
     public Color slotWeaponColor = new Color(0.85f, 0.75f, 0.1f, 0.85f);
-    public Color slotGrenadeColor = new Color(0.2f, 0.7f, 0.2f, 0.85f);
     public Color slotItemColor = new Color(0.3f, 0.5f, 0.85f, 0.85f);
     public Color slotNoteColor = new Color(0.7f, 0.5f, 0.3f, 0.85f);
     public Color borderNormal = new Color(0.4f, 0.4f, 0.4f, 0.5f);
@@ -43,10 +39,10 @@ public class InventoryBarUI : MonoBehaviour
     private InventorySlotUI[] slotUIs = new InventorySlotUI[InventorySystem.TOTAL_SLOTS];
 
     // Etiquetas de los slots
-    private readonly string[] slotLabels = { "Arma 1", "Arma 2", "Granada", "Item", "Item" };
+    private readonly string[] slotLabels = { "Arma 1", "Arma 2", "Item", "Item" };
 
     // Separador visual entre secciones
-    private readonly bool[] hasSeparatorAfter = { false, true, true, false, false };
+    private readonly bool[] hasSeparatorAfter = { false, true, false, false };
 
     void Awake()
     {
@@ -106,17 +102,6 @@ public class InventoryBarUI : MonoBehaviour
 
     void Update()
     {
-        // Tecla Tab para inspeccionar el slot 3 (peluche)
-        if (Input.GetKeyDown(KeyCode.Tab))
-        {
-            var data = InventorySystem.Instance?.GetSlot(InventorySystem.ITEM_SLOT_1);
-            if (data != null && !data.isEmpty)
-            {
-                Debug.Log("[InventoryBarUI] Tecla Tab presionada - abriendo inspección");
-                InventorySystem.Instance.RequestInspect(InventorySystem.ITEM_SLOT_1);
-            }
-        }
-
         // Actualizar datos de munición en tiempo real
         RefreshWeaponAmmo();
     }
@@ -156,9 +141,9 @@ public class InventoryBarUI : MonoBehaviour
         barRect.anchorMax = new Vector2(0.5f, 0f);
         barRect.pivot = new Vector2(0.5f, 0f);
 
-        // Calcular ancho total (5 slots + espacios + separadores)
+        // Calcular ancho total (4 slots + espacios + separador)
         float separatorWidth = 12f;
-        int numSeparators = 2; // después de slot 1 y slot 2
+        int numSeparators = 1; // después de slot 1
         float totalWidth = (slotSize * InventorySystem.TOTAL_SLOTS) +
                            (slotSpacing * (InventorySystem.TOTAL_SLOTS - 1 - numSeparators)) +
                            (separatorWidth * numSeparators) + 30f; // padding
@@ -184,8 +169,8 @@ public class InventoryBarUI : MonoBehaviour
         // ── Crear los 5 slots ──
         for (int i = 0; i < InventorySystem.TOTAL_SLOTS; i++)
         {
-            // Separador visual entre secciones
-            if (i == 2 || i == 3)
+            // Separador visual entre secciones (solo entre armas e items)
+            if (i == 2)
             {
                 GameObject sep = CreateUIObject($"Separator_{i}", barGO.transform);
                 RectTransform sepRect = sep.GetComponent<RectTransform>();
@@ -368,7 +353,6 @@ public class InventoryBarUI : MonoBehaviour
         // Asignar colores personalizados
         slotUI.emptyColor = slotEmptyColor;
         slotUI.weaponColor = slotWeaponColor;
-        slotUI.grenadeColor = slotGrenadeColor;
         slotUI.itemColor = slotItemColor;
         slotUI.noteColor = slotNoteColor;
         slotUI.selectedBorderColor = borderSelected;
@@ -414,16 +398,7 @@ public class InventoryBarUI : MonoBehaviour
 
     void OnSlotClicked(int slotIndex)
     {
-        Debug.Log($"[InventoryBarUI] OnSlotClicked: Slot {slotIndex}");
-        if (InventorySystem.Instance != null)
-        {
-            Debug.Log($"[InventoryBarUI] Llamando RequestInspect para slot {slotIndex}");
-            InventorySystem.Instance.RequestInspect(slotIndex);
-        }
-        else
-        {
-            Debug.LogError("[InventoryBarUI] InventorySystem.Instance es NULL!");
-        }
+        // Inspección desactivada
     }
 
     // ══════════════════════════════════════════════════════════════

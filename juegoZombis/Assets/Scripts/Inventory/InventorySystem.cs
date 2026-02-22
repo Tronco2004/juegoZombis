@@ -4,10 +4,9 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Sistema central de inventario — Singleton.
-/// Gestiona 5 slots:
+/// Gestiona 4 slots:
 ///   Slot 0-1 → Armas (sincronizado con WeaponSwitcher)
-///   Slot 2   → Granadas
-///   Slot 3-4 → Items / Notas (peluche, llave, etc.)
+///   Slot 2-3 → Items / Notas (peluche, llave, etc.)
 /// 
 /// Notifica a la UI con eventos cuando algo cambia.
 /// </summary>
@@ -18,12 +17,11 @@ public class InventorySystem : MonoBehaviour
     // ══════════════════════════════════════════════════════════════
     //  CONSTANTES
     // ══════════════════════════════════════════════════════════════
-    public const int TOTAL_SLOTS = 5;
+    public const int TOTAL_SLOTS = 4;
     public const int WEAPON_SLOT_1 = 0;
     public const int WEAPON_SLOT_2 = 1;
-    public const int GRENADE_SLOT = 2;
-    public const int ITEM_SLOT_1 = 3;
-    public const int ITEM_SLOT_2 = 4;
+    public const int ITEM_SLOT_1 = 2;
+    public const int ITEM_SLOT_2 = 3;
 
     // ══════════════════════════════════════════════════════════════
     //  DATOS
@@ -44,9 +42,6 @@ public class InventorySystem : MonoBehaviour
 
     /// <summary>Se dispara cuando cambia el slot seleccionado</summary>
     public event Action<int> OnSelectionChanged;
-
-    /// <summary>Se dispara cuando se quiere inspeccionar un item</summary>
-    public event Action<InventorySlotData> OnInspectRequested;
 
     // ══════════════════════════════════════════════════════════════
     //  REFERENCIAS
@@ -211,10 +206,6 @@ public class InventorySystem : MonoBehaviour
         {
             switch (itemData.itemType)
             {
-                case ItemType.Grenade:
-                    targetSlot = GRENADE_SLOT;
-                    break;
-
                 case ItemType.Item:
                 case ItemType.Note:
                     // Buscar primer slot de items libre
@@ -234,25 +225,16 @@ public class InventorySystem : MonoBehaviour
 
         var slot = new InventorySlotData
         {
-            slotType = itemData.itemType == ItemType.Grenade ? SlotType.Grenade :
-                       itemData.itemType == ItemType.Note ? SlotType.Note : SlotType.Item,
+            slotType = itemData.itemType == ItemType.Note ? SlotType.Note : SlotType.Item,
             itemName = itemData.itemName,
             description = itemData.description,
-            icon = itemData.icon,  // Asegurar que el icono se pase
+            icon = itemData.icon,
             itemData = itemData,
             isEmpty = false,
             quantity = 1
         };
 
         Debug.Log($"[InventorySystem] Item '{itemData.itemName}' creado con icon: {(itemData.icon != null ? itemData.icon.name : "null")}");
-
-        // Si es granada y ya hay → sumar cantidad
-        if (itemData.itemType == ItemType.Grenade && slots[GRENADE_SLOT] != null && !slots[GRENADE_SLOT].isEmpty)
-        {
-            slots[GRENADE_SLOT].quantity++;
-            OnSlotChanged?.Invoke(targetSlot, slots[GRENADE_SLOT]);
-            return true;
-        }
 
         slots[targetSlot] = slot;
         OnSlotChanged?.Invoke(targetSlot, slot);
@@ -286,23 +268,6 @@ public class InventorySystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Quita una granada (reduce cantidad)
-    /// </summary>
-    public bool UseGrenade()
-    {
-        var slot = slots[GRENADE_SLOT];
-        if (slot == null || slot.isEmpty || slot.quantity <= 0) return false;
-
-        slot.quantity--;
-        if (slot.quantity <= 0)
-            ClearSlot(GRENADE_SLOT);
-        else
-            OnSlotChanged?.Invoke(GRENADE_SLOT, slot);
-
-        return true;
-    }
-
-    /// <summary>
     /// Comprueba si hay un item en un slot
     /// </summary>
     public bool HasItem(string itemName)
@@ -322,37 +287,6 @@ public class InventorySystem : MonoBehaviour
     {
         if (index < 0 || index >= TOTAL_SLOTS) return null;
         return slots[index];
-    }
-
-    /// <summary>
-    /// Devuelve el número de granadas
-    /// </summary>
-    public int GetGrenadeCount()
-    {
-        var slot = slots[GRENADE_SLOT];
-        return (slot != null && !slot.isEmpty) ? slot.quantity : 0;
-    }
-
-    /// <summary>
-    /// Solicita inspeccionar el item de un slot
-    /// </summary>
-    public void RequestInspect(int slotIndex)
-    {
-        Debug.Log($"[InventorySystem] RequestInspect: Slot {slotIndex}");
-        if (slotIndex < 0 || slotIndex >= TOTAL_SLOTS) 
-        {
-            Debug.LogError($"[InventorySystem] Índice inválido: {slotIndex}");
-            return;
-        }
-        var slot = slots[slotIndex];
-        if (slot == null || slot.isEmpty) 
-        {
-            Debug.LogWarning($"[InventorySystem] Slot {slotIndex} está vacío o null");
-            return;
-        }
-
-        Debug.Log($"[InventorySystem] Disparando OnInspectRequested para {slot.itemName}");
-        OnInspectRequested?.Invoke(slot);
     }
 
     void ClearSlot(int index)
@@ -394,7 +328,6 @@ public class InventorySlotData
 public enum SlotType
 {
     Weapon,
-    Grenade,
     Item,
     Note
 }

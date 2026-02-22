@@ -65,6 +65,8 @@ public class ZombieAI : MonoBehaviour
     [Header("=== SISTEMA MANSION (Alerta Progresiva) ===")]
     [Tooltip("¿Este zombi es de la mansion? Si es true, entra en modo 3 estados")]
     public bool isMansionZombie = false;
+    [Tooltip("Zona a la que pertenece este zombi (asignado automáticamente al spawnear).")]
+    public SpawnZone spawnZone = SpawnZone.Zona1A;
     [Tooltip("Rango de proximidad para detección pasiva (5m por defecto)")]
     public float proximityAlertRange = 5f;
     
@@ -76,6 +78,9 @@ public class ZombieAI : MonoBehaviour
     // Estado
     private Transform playerTransform;
     private PlayerHealth playerHealth;
+    private TankHealth tankHealth;      // Referencia al tanque (puede ser null si no hay tanque)
+    private Transform tankTransform;
+    private float lastTankAttackTime;
     private float lastAttackTime;
     private bool isDead = false;
     private bool playerDetected = false;
@@ -141,6 +146,9 @@ public class ZombieAI : MonoBehaviour
         
         // Buscar al jugador por tag
         FindPlayer();
+
+        // Buscar el tanque en la escena (puede no existir)
+        FindTank();
         
         // Obtener animController si no está asignado
         if (animController == null)
@@ -200,8 +208,18 @@ public class ZombieAI : MonoBehaviour
         float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
         
         // Fuera de rango de persecución → reubicar en el spawn más cercano al jugador
+        // Los zombis de mansión NUNCA se reubican: siempre se quedan dentro de la mansión.
         if (distanceToPlayer > chaseRange)
         {
+            if (isMansionZombie)
+            {
+                // Simplemente esperar a que el jugador se acerque de nuevo
+                isChasing = false;
+                StopMovement();
+                UpdateAnimations();
+                return;
+            }
+
             // Intentar reubicar a través del SpawnManager
             if (ZombieSpawner.Instance != null)
             {
@@ -258,6 +276,10 @@ public class ZombieAI : MonoBehaviour
         
         // Gruñidos periódicos
         UpdateAmbientSounds();
+
+        // ── Atacar al tanque si está en rango ─────────────────
+        // Se hace siempre al final, independientemente del estado del zombi
+        TryAttackTank();
     }
 
     /// <summary>
@@ -402,6 +424,18 @@ public class ZombieAI : MonoBehaviour
             Debug.LogWarning($"[ZombieAI] No se encontró objeto con tag '{playerTag}'");
         }
     }
+
+    /// <summary>
+    /// Buscar el tanque en la escena a través del singleton TankHealth.
+    /// </summary>
+    void FindTank()
+    {
+        if (TankHealth.Instance != null)
+        {
+            tankHealth    = TankHealth.Instance;
+            tankTransform = tankHealth.transform;
+        }
+    }
     
     /// <summary>
     /// Perseguir al jugador con NavMesh
@@ -469,6 +503,39 @@ public class ZombieAI : MonoBehaviour
         }
         
         // Sonido de ataque
+        PlayRandomSound(attackSounds);
+    }
+
+    /// <summary>
+    /// Atacar al tanque si está dentro del rango de ataque.
+    /// Usa el mismo cooldown que el ataque normal al jugador.
+    /// </summary>
+    void TryAttackTank()
+    {
+        if (tankHealth == null)
+        {
+            // Intentar localizar el tanque si aún no se ha encontrado
+            FindTank();
+            return;
+        }
+
+        if (tankHealth.isDestroyed) return;
+
+        float distToTank = Vector3.Distance(transform.position, tankTransform.position);
+        if (distToTank > attackRange) return;
+
+        // Cooldown compartido con el ataque al jugador para no doblar el DPS
+        if (Time.time - lastTankAttackTime < attackCooldown) return;
+
+        lastTankAttackTime = Time.time;
+
+        tankHealth.TakeDamage(damage);
+        Debug.Log($"[ZombieAI] {gameObject.name} ataca al tanque. Daño: {damage}");
+
+        // Animación y sonido de ataque
+        if (animController != null)
+            animController.PlayAttack();
+
         PlayRandomSound(attackSounds);
     }
     

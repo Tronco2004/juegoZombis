@@ -17,7 +17,7 @@ public class InventoryItemData : ScriptableObject
     public ItemType itemType = ItemType.Item;
 
     [Header("=== SLOT ESPECÍFICO (Opcional) ===")]
-    [Tooltip("Si quieres que este item vaya SIEMPRE a un slot concreto.\n-1 = automático (primer slot libre)\n3 = Slot 4 (Item 1)\n4 = Slot 5 (Item 2)")]
+    [Tooltip("Si quieres que este item vaya SIEMPRE a un slot concreto.\n-1 = automático (primer slot libre)\n2 = Slot 3 (Item 1)\n3 = Slot 4 (Item 2)")]
     [Range(-1, 4)]
     public int preferredSlot = -1;
 
@@ -45,7 +45,6 @@ public class InventoryItemData : ScriptableObject
 public enum ItemType
 {
     Weapon,     // Slot 1-2
-    Grenade,    // Slot 3
-    Item,       // Slot 4-5 (peluche, llave, etc.)
-    Note        // También slot 4-5, pero se abre como texto
+    Item,       // Slot 3-4 (peluche, llave, etc.)
+    Note        // También slot 3-4, pero se abre como texto
 }

@@ -20,13 +20,12 @@ public class InventorySlotUI : MonoBehaviour
     public TextMeshProUGUI nameText;  // Nombre centrado cuando no hay icono
 
     [Header("=== COLORES ===")]
-    public Color emptyColor = new Color(0.15f, 0.15f, 0.15f, 0.6f);
-    public Color weaponColor = new Color(0.85f, 0.75f, 0.1f, 0.85f);     // Dorado
-    public Color grenadeColor = new Color(0.2f, 0.7f, 0.2f, 0.85f);      // Verde
-    public Color itemColor = new Color(0.3f, 0.5f, 0.85f, 0.85f);        // Azul
-    public Color noteColor = new Color(0.7f, 0.5f, 0.3f, 0.85f);         // Marrón
+    public Color emptyColor   = new Color(0.15f, 0.15f, 0.15f, 0.6f);
+    public Color weaponColor  = new Color(0.85f, 0.75f, 0.1f,  0.85f);   // Dorado
+    public Color itemColor    = new Color(0.3f,  0.5f,  0.85f, 0.85f);   // Azul
+    public Color noteColor    = new Color(0.7f,  0.5f,  0.3f,  0.85f);   // Marrón
     public Color selectedBorderColor = new Color(1f, 1f, 1f, 1f);
-    public Color normalBorderColor = new Color(0.5f, 0.5f, 0.5f, 0.4f);
+    public Color normalBorderColor   = new Color(0.5f, 0.5f, 0.5f, 0.4f);
 
     // Estado
     private int slotIndex;
@@ -134,10 +133,9 @@ public class InventorySlotUI : MonoBehaviour
         Color bgColor = emptyColor;
         switch (data.slotType)
         {
-            case SlotType.Weapon:  bgColor = weaponColor;  break;
-            case SlotType.Grenade: bgColor = grenadeColor;  break;
-            case SlotType.Item:    bgColor = itemColor;     break;
-            case SlotType.Note:    bgColor = noteColor;     break;
+            case SlotType.Weapon: bgColor = weaponColor; break;
+            case SlotType.Item:   bgColor = itemColor;   break;
+            case SlotType.Note:   bgColor = noteColor;   break;
         }
         if (backgroundImage != null)
             backgroundImage.color = bgColor;
@@ -156,18 +154,10 @@ public class InventorySlotUI : MonoBehaviour
             }
         }
 
-        // Cantidad (solo granadas)
+        // Cantidad (items apilables, actualmente sin uso)
         if (quantityText != null)
         {
-            if (data.slotType == SlotType.Grenade && data.quantity > 1)
-            {
-                quantityText.text = $"x{data.quantity}";
-                quantityText.gameObject.SetActive(true);
-            }
-            else
-            {
-                quantityText.gameObject.SetActive(false);
-            }
+            quantityText.gameObject.SetActive(false);
         }
     }
 

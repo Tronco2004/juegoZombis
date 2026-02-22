@@ -15,6 +15,7 @@ public class GameHUD : MonoBehaviour
     public PlayerPoints playerPoints;
     public FirstPersonController playerController;
     public ZombieSpawner zombieSpawner;
+    public TankController tankController;
     
     // Canvas
     private Canvas hudCanvas;
@@ -35,6 +36,12 @@ public class GameHUD : MonoBehaviour
     // Puntos y Oleada
     private TextMeshProUGUI pointsText;
     private TextMeshProUGUI waveText;
+
+    // Vida del Tanque
+    private GameObject tankHealthContainer;
+    private Image tankHealthBarFill;
+    private TextMeshProUGUI tankHealthText;
+    private TextMeshProUGUI tankHealthLabel;
     
     // Crosshair
     private RectTransform[] crosshairParts;
@@ -112,6 +119,8 @@ public class GameHUD : MonoBehaviour
             playerController = FindObjectOfType<FirstPersonController>();
         if (zombieSpawner == null)
             zombieSpawner = FindObjectOfType<ZombieSpawner>();
+        if (tankController == null)
+            tankController = FindObjectOfType<TankController>();
         
         // Buscar WeaponSwitcher
         weaponSwitcher = FindObjectOfType<WeaponSwitcher>();
@@ -164,6 +173,7 @@ public class GameHUD : MonoBehaviour
         CreateWaveDisplay();
         CreateCrosshair();
         CreateCompass();
+        CreateTankHealthBar();
     }
     
     void CreateHealthBar()
@@ -451,6 +461,7 @@ public class GameHUD : MonoBehaviour
         try { UpdatePoints(); } catch (System.Exception) { }
         try { UpdateWave(); } catch (System.Exception) { }
         try { UpdateCrosshair(); } catch (System.Exception) { }
+        try { UpdateTankHealth(); } catch (System.Exception) { }
         UpdateCompass(); // Este SIEMPRE debe ejecutarse
     }
     
@@ -577,18 +588,152 @@ public class GameHUD : MonoBehaviour
         text.color = normal;
     }
     
+    // ==================== VIDA DEL TANQUE ====================
+
+    void CreateTankHealthBar()
+    {
+        // Panel principal — centrado en la parte inferior
+        tankHealthContainer = CreatePanel("TankHealthBar", hudCanvas.transform);
+        RectTransform containerRect = tankHealthContainer.GetComponent<RectTransform>();
+        SetAnchor(containerRect, 0.5f, 0f, 0.5f, 0f); // Ancla inferior-centro
+        containerRect.pivot = new Vector2(0.5f, 0f);
+        containerRect.anchoredPosition = new Vector2(0f, 20f);
+        containerRect.sizeDelta = new Vector2(340f, 58f);
+
+        // Fondo semitransparente
+        Image bgImg = tankHealthContainer.AddComponent<Image>();
+        bgImg.color = new Color(0f, 0f, 0f, 0.55f);
+
+        // ── Etiqueta “TANQUE” arriba del todo —
+        GameObject labelGO = CreatePanel("TankLabel", tankHealthContainer.transform);
+        tankHealthLabel = labelGO.AddComponent<TextMeshProUGUI>();
+        tankHealthLabel.text = "\u26a1  TANQUE";
+        tankHealthLabel.fontSize = 13f;
+        tankHealthLabel.fontStyle = FontStyles.Bold;
+        tankHealthLabel.color = new Color(1f, 0.75f, 0.2f, 1f); // Dorado
+        tankHealthLabel.alignment = TextAlignmentOptions.Center;
+        RectTransform labelRect = labelGO.GetComponent<RectTransform>();
+        labelRect.anchorMin = new Vector2(0f, 0.6f);
+        labelRect.anchorMax = new Vector2(1f, 1f);
+        labelRect.offsetMin = new Vector2(6f, 0f);
+        labelRect.offsetMax = new Vector2(-6f, -2f);
+
+        // ── Barra de vida (fondo interior) —
+        GameObject barBG = CreatePanel("TankBarBG", tankHealthContainer.transform);
+        Image barBGImg = barBG.AddComponent<Image>();
+        barBGImg.color = new Color(0.12f, 0.12f, 0.12f, 1f);
+        RectTransform barBGRect = barBG.GetComponent<RectTransform>();
+        barBGRect.anchorMin = new Vector2(0f, 0f);
+        barBGRect.anchorMax = new Vector2(1f, 0.6f);
+        barBGRect.offsetMin = new Vector2(6f, 5f);
+        barBGRect.offsetMax = new Vector2(-6f, 0f);
+
+        // Fill de la barra
+        GameObject fillGO = CreatePanel("TankBarFill", barBG.transform);
+        tankHealthBarFill = fillGO.AddComponent<Image>();
+        tankHealthBarFill.color = new Color(0.2f, 0.85f, 0.3f, 1f); // Verde
+        RectTransform fillRect = fillGO.GetComponent<RectTransform>();
+        fillRect.anchorMin = Vector2.zero;
+        fillRect.anchorMax = new Vector2(1f, 1f); // Empieza llena
+        fillRect.pivot = new Vector2(0f, 0.5f);
+        fillRect.offsetMin = new Vector2(2f, 2f);
+        fillRect.offsetMax = new Vector2(-2f, -2f);
+
+        // Texto numérico dentro de la barra
+        GameObject textGO = CreatePanel("TankHealthText", barBG.transform);
+        tankHealthText = textGO.AddComponent<TextMeshProUGUI>();
+        tankHealthText.text = "1000 / 1000";
+        tankHealthText.fontSize = 12f;
+        tankHealthText.fontStyle = FontStyles.Bold;
+        tankHealthText.color = Color.white;
+        tankHealthText.alignment = TextAlignmentOptions.Center;
+        RectTransform textRect = textGO.GetComponent<RectTransform>();
+        textRect.anchorMin = Vector2.zero;
+        textRect.anchorMax = Vector2.one;
+        textRect.offsetMin = Vector2.zero;
+        textRect.offsetMax = Vector2.zero;
+
+        // La barra empieza oculta; se muestra solo si hay un tanque en la escena
+        tankHealthContainer.SetActive(false);
+    }
+
+    void UpdateTankHealth()
+    {
+        if (tankHealthContainer == null) return;
+
+        // Buscar TankController si aún no se tiene referencia
+        if (tankController == null)
+            tankController = FindObjectOfType<TankController>();
+
+        // Mostrar la barra SOLO cuando el jugador está dentro del tanque
+        bool inTank = tankController != null && tankController.IsBeingDriven();
+        tankHealthContainer.SetActive(inTank);
+
+        if (!inTank) return;
+
+        // Intentar obtener TankHealth
+        TankHealth tank = TankHealth.Instance;
+        if (tank == null && tankController != null)
+            tank = tankController.GetComponent<TankHealth>();
+
+        if (tank == null)
+        {
+            // Sin TankHealth: mostrar la barra a tope con un aviso
+            tankHealthBarFill.rectTransform.anchorMax = new Vector2(1f, 1f);
+            tankHealthBarFill.color = new Color(0.2f, 0.85f, 0.3f, 1f);
+            if (tankHealthText != null)  tankHealthText.text  = "? / ?";
+            if (tankHealthLabel != null) tankHealthLabel.text = "\u26a1  TANQUE";
+            return;
+        }
+
+        float percent = Mathf.Clamp01(tank.currentHealth / tank.maxHealth);
+
+        // Actualizar fill
+        tankHealthBarFill.rectTransform.anchorMax = new Vector2(percent, 1f);
+
+        // Color según vida
+        if (tank.isDestroyed)
+        {
+            float pulse = Mathf.PingPong(Time.time * 4f, 1f);
+            tankHealthBarFill.color = Color.Lerp(new Color(0.8f, 0f, 0f), new Color(1f, 0.3f, 0.3f), pulse);
+            if (tankHealthLabel != null)
+                tankHealthLabel.text = "\u26a1  TANQUE  \u2014  DESTRUIDO";
+        }
+        else
+        {
+            if (tankHealthLabel != null)
+                tankHealthLabel.text = "\u26a1  TANQUE";
+
+            if (percent > 0.5f)
+                tankHealthBarFill.color = new Color(0.2f, 0.85f, 0.3f, 1f);
+            else if (percent > 0.25f)
+                tankHealthBarFill.color = new Color(0.95f, 0.85f, 0.15f, 1f);
+            else
+            {
+                float pulse = Mathf.PingPong(Time.time * 3f, 1f);
+                tankHealthBarFill.color = Color.Lerp(new Color(0.9f, 0.15f, 0.15f), new Color(1f, 0.5f, 0.5f), pulse);
+            }
+        }
+
+        if (tankHealthText != null)
+            tankHealthText.text = $"{Mathf.CeilToInt(tank.currentHealth)} / {Mathf.CeilToInt(tank.maxHealth)}";
+    }
+
+    // ==================== OLEADA ====================
+
     void UpdateWave()
     {
         if (zombieSpawner == null || waveText == null) return;
         
-        var field = typeof(ZombieSpawner).GetField("currentWave", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        
-        if (field != null)
+        // Zona 3 (infinita): mostrar símbolo ∞ en vez del número de oleada
+        if (zombieSpawner.CurrentPlayerZone == SpawnZone.Zona3_Infinitos)
         {
-            int wave = (int)field.GetValue(zombieSpawner);
-            waveText.text = "OLEADA " + wave;
+            waveText.text = "OLEADA \u221e";
+            return;
         }
+
+        // Zona normal: mostrar la oleada actual (se conserva aunque se haya pasado por Zona 3)
+        waveText.text = "OLEADA " + zombieSpawner.CurrentWave;
     }
     
     void UpdateCrosshair()
