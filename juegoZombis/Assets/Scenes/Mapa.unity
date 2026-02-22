@@ -44898,7 +44898,7 @@ Transform:
   m_GameObject: {fileID: 1105425737}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -13.311096, y: 7.226535, z: 23.595612}
+  m_LocalPosition: {x: -13.311096, y: 6.58, z: 19.96}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -68761,10 +68761,16 @@ MonoBehaviour:
     ah\xED fuera, listo."
   dialogoVacilar3: "Tr\xE1eme a mi hijo y entonces hablamos. Hasta entonces... pi\xE9rdete."
   dialogoConHijo1: "\xA1Mi hijo! \xA1Gracias, gracias! No s\xE9 c\xF3mo agradec\xE9rtelo..."
-  dialogoConHijo2: "Escucha, te voy a decir c\xF3mo salir de aqu\xED. Presta atenci\xF3n:"
-  dialogoPista1: 'Primero: busca el juego de Simon en el campamento militar.'
-  dialogoPista2: "Segundo: consigue acceso al avi\xF3n del hangar."
-  dialogoPista3: "Tercero: sube al avi\xF3n y escapa. Es tu \xFAnica salida."
+  dialogoConHijo2: 'te digo la verdad, de aqui nadie ha salido todavia, hay un helicoptero
+    pero nadie ha conseguido llegar , solo hay dos opciones, sobrevivir o hacer explotar
+    la isla, te voy a decir que tienes que hacer para ello: '
+  dialogoPista1: 'Primero: busca el juego de Simon en el campamento militar, creo
+    que me dijeron que esta en uno de los hangares.'
+  dialogoPista2: 'Segundo: Una vez hayas hecho el simon dice, segun lo que me dijeron
+    se abrira el otro hangar, no me preguntes como lo se.'
+  dialogoPista3: 'Tercero: Dentro del segundo hangar hay otro sistema de seguridad
+    mas, te dira 6 numeros, pero lo que no se es como esta la cosa por alli de zombis
+    asi que ten cuidado, una vez lo completes, explotara todo'
   dialogoFinal: Buena suerte, amigo. Y... gracias por traer a mi hijo.
   dialogoYaDioPistas: "Ya te lo dije todo. Busca el juego, coge el avi\xF3n y escapa.
     \xA1Vete!"
