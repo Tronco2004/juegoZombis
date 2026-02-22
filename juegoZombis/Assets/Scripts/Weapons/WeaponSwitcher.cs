@@ -302,7 +302,10 @@ public class WeaponSwitcher : MonoBehaviour
         isSwitching = false;
         pendingWeaponIndex = -1;
 
-        Debug.Log($"Arma equipada: {currentWeapon.weaponName}");
+        if (isMelee && currentMeleeWeapon != null)
+            Debug.Log($"Arma equipada (melee): {currentMeleeWeapon.weaponName}");
+        else if (!isMelee && currentWeapon != null)
+            Debug.Log($"Arma equipada: {currentWeapon.weaponName}");
     }
 
     /// <summary>

@@ -269,7 +269,13 @@ public class FPSMeleeWeapon : MonoBehaviour
 
     void PerformDamage(float damageAmount)
     {
-        if (playerCamera == null) return;
+        Debug.Log($"[Cuchillo] PerformDamage llamado con {damageAmount} de daño");
+        if (playerCamera == null)
+        {
+            Debug.LogError("[Cuchillo] playerCamera es NULL, no puede hacer raycast!");
+            playerCamera = Camera.main;
+            if (playerCamera == null) return;
+        }
         
         // Raycast desde el centro de la cámara
         Ray ray = playerCamera.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
@@ -286,6 +292,7 @@ public class FPSMeleeWeapon : MonoBehaviour
             hitSomething = true;
             hitPoint = hit.point;
             hitNormal = hit.normal;
+            Debug.Log($"[Cuchillo] Raycast impacto en: {hit.collider.gameObject.name} (daño: {damageAmount})");
             hitEnemy = ApplyDamageToTarget(hit.collider.gameObject, hit.point, ray.direction, damageAmount);
         }
         else
@@ -296,7 +303,12 @@ public class FPSMeleeWeapon : MonoBehaviour
                 hitSomething = true;
                 hitPoint = hit.point;
                 hitNormal = hit.normal;
+                Debug.Log($"[Cuchillo] SphereCast impacto en: {hit.collider.gameObject.name} (daño: {damageAmount})");
                 hitEnemy = ApplyDamageToTarget(hit.collider.gameObject, hit.point, ray.direction, damageAmount);
+            }
+            else
+            {
+                Debug.Log($"[Cuchillo] Sin impacto. Rango: {attackRange}m, Layer: {damageableLayers.value}");
             }
         }
         
@@ -327,11 +339,17 @@ public class FPSMeleeWeapon : MonoBehaviour
         // Intentar aplicar daño a través de EnemyHealth (sistema principal de enemigos)
         EnemyHealth enemyHealth = target.GetComponent<EnemyHealth>();
         if (enemyHealth == null) enemyHealth = target.GetComponentInParent<EnemyHealth>();
+        if (enemyHealth == null) enemyHealth = target.GetComponentInChildren<EnemyHealth>();
         
         if (enemyHealth != null)
         {
             enemyHealth.TakeDamage(damageAmount, hitPoint, false); // false = no es headshot
             isEnemy = true;
+            Debug.Log($"[Cuchillo] ¡DAÑO APLICADO! {damageAmount} a '{enemyHealth.gameObject.name}' (golpeado en: {target.name})");
+        }
+        else
+        {
+            Debug.LogWarning($"[Cuchillo] '{target.name}' (layer: {LayerMask.LayerToName(target.layer)}) NO tiene EnemyHealth en ningún nivel de jerarquía");
         }
         
         // Rigidbody para empujar objetos
