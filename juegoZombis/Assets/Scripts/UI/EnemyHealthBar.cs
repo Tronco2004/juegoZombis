@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 public class EnemyHealthBar : MonoBehaviour
 {
-    public float heightAboveEnemy = 2.2f;
+    public float heightAboveEnemy = 1.9f;
     public float visibleTime = 3f;
     private Transform target;
     private EnemyHealth health;
@@ -21,6 +21,10 @@ public class EnemyHealthBar : MonoBehaviour
         health = h;
         lastHit = -visibleTime;
         cam = FindCamera();
+        
+        // IMPORTANTE: la barra NO debe ser hija del enemigo
+        transform.SetParent(null);
+        
         BuildBar();
     }
     void BuildBar()
@@ -66,13 +70,26 @@ public class EnemyHealthBar : MonoBehaviour
     void LateUpdate()
     {
         if (target == null || health == null) { Destroy(gameObject); return; }
+        
+        // Buscar cámara del jugador cada frame
+        cam = Camera.main;
         if (cam == null) cam = FindCamera();
         if (cam == null) return;
+        
+        // Posicionar encima del enemigo (en espacio mundo)
         transform.position = target.position + Vector3.up * heightAboveEnemy;
-        // Billboard: rotación correcta usando la dirección real desde la barra hacia la cámara
-        Vector3 dirToCamera = cam.transform.position - transform.position;
-        if (dirToCamera != Vector3.zero)
-            transform.rotation = Quaternion.LookRotation(dirToCamera, Vector3.up);
+        
+        // ============ BILLBOARD ============
+        // Paso 1: Resetear rotación a identidad
+        transform.rotation = Quaternion.identity;
+        
+        // Paso 2: Calcular ángulo Y entre la barra y la cámara
+        Vector3 dirToCam = cam.transform.position - transform.position;
+        float angleY = Mathf.Atan2(dirToCam.x, dirToCam.z) * Mathf.Rad2Deg;
+        
+        // Paso 3: Aplicar SOLO rotación en Y = siempre recto y mirando a la cámara
+        transform.rotation = Quaternion.Euler(0f, angleY, 0f);
+        // ===================================
         float pct = Mathf.Clamp01(health.currentHealth / health.maxHealth);
         float w = (barWidth - 4) * pct;
         fgRect.sizeDelta = new Vector2(w, barHeight - 4);

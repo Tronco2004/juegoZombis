@@ -30,6 +30,8 @@ public class ElectricDoorDialogue : MonoBehaviour
     private bool playerInRange = false;
     private bool dialogueDisabled = false;
     private bool markerAdded = false;
+    private bool dialogueShownOnce = false;
+    private DoubleDoor doorScript;
 
     // Estilos
     private GUIStyle promptStyle;
@@ -49,6 +51,11 @@ public class ElectricDoorDialogue : MonoBehaviour
             if (pm != null) player = pm.transform;
         }
 
+        // Buscar la puerta en el mismo GameObject o en el padre
+        doorScript = GetComponent<DoubleDoor>();
+        if (doorScript == null) doorScript = GetComponentInParent<DoubleDoor>();
+        if (doorScript == null) doorScript = GetComponentInChildren<DoubleDoor>();
+
         DialogueManager.EnsureExists();
 
         promptStyle = new GUIStyle();
@@ -65,6 +72,13 @@ public class ElectricDoorDialogue : MonoBehaviour
     {
         if (player == null || dialogueDisabled) return;
 
+        // Si la puerta ya está abierta, desactivar el diálogo permanentemente
+        if (doorScript != null && doorScript.IsOpen)
+        {
+            DisableDialogue();
+            return;
+        }
+
         // Comprobar distancia al jugador
         float distance = Vector3.Distance(transform.position, player.position);
         playerInRange = distance <= interactionRange;
@@ -74,6 +88,7 @@ public class ElectricDoorDialogue : MonoBehaviour
             if (DialogueManager.Instance != null)
             {
                 DialogueManager.Instance.ShowDialogue(dialogueText, displayDuration);
+                dialogueShownOnce = true;
                 
                 // Añadir marker en la brújula apuntando al cuadro eléctrico
                 if (!markerAdded && GameHUD.Instance != null)
@@ -100,6 +115,9 @@ public class ElectricDoorDialogue : MonoBehaviour
     void OnGUI()
     {
         if (dialogueDisabled || !playerInRange) return;
+
+        // Ocultar si el diálogo ya se mostró una vez
+        if (dialogueShownOnce) return;
 
         // No mostrar prompt si ya hay un diálogo en pantalla
         if (DialogueManager.Instance != null && DialogueManager.Instance.IsShowingDialogue()) return;

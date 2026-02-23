@@ -4,6 +4,8 @@ using UnityEngine.SceneManagement;
 
 public class NuclearBomb : MonoBehaviour
 {
+    public static System.Action OnNuclearDetonated; // Evento cuando explota
+    
     public float blastRadius = 100f;
     public float maxDamage = 999f;
     public float flashIntensity = 3f;
@@ -46,11 +48,14 @@ public class NuclearBomb : MonoBehaviour
         
         DamageEnemies();
         
+        // Disparar evento de detonación
+        OnNuclearDetonated?.Invoke();
+        
         if (Camera.main != null)
             StartCoroutine(Shake());
         
         yield return new WaitForSeconds(timeToVictory);
-        SceneManager.LoadScene("PantallaVictoria");
+        // Ya no cargamos escena, GameResultScreen manejará la victoria
     }
     
     void DamageEnemies()

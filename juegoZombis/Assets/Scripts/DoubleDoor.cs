@@ -58,6 +58,9 @@ public class DoubleDoor : MonoBehaviour
     private bool playerInRange = false;
     private bool isLocked = false; // Si está bloqueada, no se puede abrir
     private Transform player;
+
+    // Propiedad pública para consultar si la puerta está abierta
+    public bool IsOpen => isOpen;
     
     // NavMeshObstacles para cada puerta
     private NavMeshObstacle leftObstacle;

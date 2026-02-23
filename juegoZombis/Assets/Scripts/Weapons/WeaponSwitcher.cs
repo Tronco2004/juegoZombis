@@ -1,8 +1,10 @@
 using UnityEngine;
+using System.Collections;
 
 /// <summary>
-/// Sistema para cambiar entre armas (soporta FPSWeaponController y FPSMeleeWeapon)
-/// Coloca este script en el jugador
+/// Sistema para cambiar entre armas de fuego.
+/// El cuchillo NO se equipa como arma separada.
+/// Pulsar V hace un ataque rápido de cuchillo y vuelve al arma actual.
 /// </summary>
 public class WeaponSwitcher : MonoBehaviour
 {
@@ -10,10 +12,10 @@ public class WeaponSwitcher : MonoBehaviour
     [Tooltip("Array con todas las armas de fuego del jugador")]
     public FPSWeaponController[] weapons;
     
-    [Tooltip("Array con armas cuerpo a cuerpo del jugador")]
-    public FPSMeleeWeapon[] meleeWeapons;
+    [Tooltip("Arma melee para ataque rápido (V). NO se equipa como arma.")]
+    public FPSMeleeWeapon quickMeleeWeapon;
     
-    [Tooltip("Índice del arma inicial (0 = primera arma de fuego, si es negativo cuenta melee)")]
+    [Tooltip("Índice del arma inicial")]
     public int startingWeaponIndex = 0;
 
     [Header("Input")]
@@ -22,26 +24,27 @@ public class WeaponSwitcher : MonoBehaviour
     [Tooltip("Permitir cambiar armas con teclas numéricas")]
     public bool useNumberKeys = true;
     
-    [Tooltip("Tecla para cambiar a cuchillo rápidamente")]
+    [Tooltip("Tecla para ataque rápido de cuchillo")]
     public KeyCode quickMeleeKey = KeyCode.V;
 
     // Arma actual
     private int currentWeaponIndex = 0;
     private FPSWeaponController currentWeapon;
-    private FPSMeleeWeapon currentMeleeWeapon;
-    private bool isMeleeActive = false;
     private bool isSwitching = false;
     private int pendingWeaponIndex = -1;
-    private bool pendingIsMelee = false;
+    
+    // Quick melee
+    private bool isQuickMeleeing = false;
+    private bool nextMeleeIsLeft = true; // alterna izquierda/derecha
 
     // Propiedades públicas
     public FPSWeaponController CurrentWeapon => currentWeapon;
-    public FPSMeleeWeapon CurrentMeleeWeapon => currentMeleeWeapon;
-    public bool IsMeleeActive => isMeleeActive;
+    public FPSMeleeWeapon CurrentMeleeWeapon => quickMeleeWeapon;
+    public bool IsMeleeActive => isQuickMeleeing;
     public bool IsSwitching => isSwitching;
     
     // Total de armas disponibles
-    public int TotalWeapons => weapons.Length + meleeWeapons.Length;
+    public int TotalWeapons => weapons.Length;
 
     void Start()
     {
@@ -51,10 +54,10 @@ public class WeaponSwitcher : MonoBehaviour
             weapons = GetComponentsInChildren<FPSWeaponController>(true);
         }
         
-        // Si no se asignaron armas melee, buscar en los hijos
-        if (meleeWeapons == null || meleeWeapons.Length == 0)
+        // Si no se asignó melee, buscar en los hijos
+        if (quickMeleeWeapon == null)
         {
-            meleeWeapons = GetComponentsInChildren<FPSMeleeWeapon>(true);
+            quickMeleeWeapon = GetComponentInChildren<FPSMeleeWeapon>(true);
         }
 
         // Desactivar todas las armas de fuego
@@ -63,27 +66,18 @@ public class WeaponSwitcher : MonoBehaviour
             weapon.gameObject.SetActive(false);
         }
         
-        // Desactivar todas las armas melee
-        foreach (var melee in meleeWeapons)
+        // Desactivar el cuchillo (solo se usa durante el ataque rápido)
+        if (quickMeleeWeapon != null)
         {
-            melee.gameObject.SetActive(false);
+            quickMeleeWeapon.gameObject.SetActive(false);
         }
 
-        // Equipar el arma inicial con animación
+        // Equipar el arma inicial
         if (weapons.Length > 0)
         {
             currentWeaponIndex = Mathf.Clamp(startingWeaponIndex, 0, weapons.Length - 1);
             currentWeapon = weapons[currentWeaponIndex];
             currentWeapon.DrawWeapon();
-            isMeleeActive = false;
-        }
-        else if (meleeWeapons.Length > 0)
-        {
-            // Si no hay armas de fuego, empezar con melee
-            currentWeaponIndex = 0;
-            currentMeleeWeapon = meleeWeapons[0];
-            currentMeleeWeapon.DrawWeapon();
-            isMeleeActive = true;
         }
     }
 
@@ -94,28 +88,19 @@ public class WeaponSwitcher : MonoBehaviour
 
     void HandleWeaponSwitch()
     {
-        if (TotalWeapons <= 1) 
-        {
-            return;
-        }
+        // No cambiar si está haciendo quick melee
+        if (isQuickMeleeing) return;
+        
+        if (weapons.Length <= 0) return;
 
         // No cambiar si está recargando o cambiando de arma
-        if (!isMeleeActive && currentWeapon != null && currentWeapon.IsReloading) return;
+        if (currentWeapon != null && currentWeapon.IsReloading) return;
         if (isSwitching) return;
         
-        // Tecla rápida para melee (V por defecto)
-        if (Input.GetKeyDown(quickMeleeKey) && meleeWeapons.Length > 0)
+        // Tecla V = ataque rápido de cuchillo (no cambia de arma)
+        if (Input.GetKeyDown(quickMeleeKey) && quickMeleeWeapon != null)
         {
-            if (!isMeleeActive)
-            {
-                // Cambiar a melee
-                EquipMeleeWeapon(0);
-            }
-            else
-            {
-                // Volver al arma de fuego anterior
-                EquipWeapon(currentWeaponIndex);
-            }
+            StartCoroutine(QuickMeleeAttack());
             return;
         }
 
@@ -139,40 +124,19 @@ public class WeaponSwitcher : MonoBehaviour
             }
         }
 
-        // Cambiar con teclas numéricas (1-9)
-        // Orden: primero melee, luego armas de fuego
-        // 1 = primer melee, 2 = segundo melee o primer arma, etc.
+        // Cambiar con teclas numéricas (1-9) — solo armas de fuego
         if (useNumberKeys)
         {
-            int totalWeapons = meleeWeapons.Length + weapons.Length;
-            
-            for (int i = 0; i < Mathf.Min(totalWeapons, 9); i++)
+            for (int i = 0; i < Mathf.Min(weapons.Length, 9); i++)
             {
                 bool alphaKey = Input.GetKeyDown(KeyCode.Alpha1 + i);
                 bool keypadKey = Input.GetKeyDown(KeyCode.Keypad1 + i);
                 
                 if (alphaKey || keypadKey)
                 {
-                    // Si el índice está dentro del rango de melee
-                    if (i < meleeWeapons.Length)
+                    if (currentWeaponIndex != i)
                     {
-                        // Es un arma melee
-                        if (!isMeleeActive || currentMeleeWeapon != meleeWeapons[i])
-                        {
-                            EquipMeleeWeapon(i);
-                        }
-                    }
-                    else
-                    {
-                        // Es un arma de fuego (restar el offset de melee)
-                        int gunIndex = i - meleeWeapons.Length;
-                        if (gunIndex < weapons.Length)
-                        {
-                            if (isMeleeActive || currentWeaponIndex != gunIndex)
-                            {
-                                EquipWeapon(gunIndex);
-                            }
-                        }
+                        EquipWeapon(i);
                     }
                     break;
                 }
@@ -180,14 +144,142 @@ public class WeaponSwitcher : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Ataque rápido de cuchillo: oculta el arma actual, muestra el cuchillo,
+    /// ataca con animación completa, y vuelve al arma de fuego.
+    /// Alterna golpe izquierda / derecha para mayor variedad.
+    /// </summary>
+    IEnumerator QuickMeleeAttack()
+    {
+        isQuickMeleeing = true;
+        
+        // ── 1. Guardar referencia al arma actual y ocultarla ──
+        FPSWeaponController weaponToRestore = currentWeapon;
+        if (weaponToRestore != null)
+        {
+            weaponToRestore.gameObject.SetActive(false);
+        }
+        
+        // ── 2. Activar cuchillo ──
+        quickMeleeWeapon.gameObject.SetActive(true);
+        
+        // Esperar un frame para que Animator se inicialice bien
+        yield return null;
+        
+        // ── 3. Obtener Animator y AudioSource ──
+        Animator knifeAnim = quickMeleeWeapon.GetComponentInChildren<Animator>();
+        AudioSource meleeAudio = quickMeleeWeapon.GetComponent<AudioSource>();
+        if (meleeAudio == null) meleeAudio = quickMeleeWeapon.gameObject.AddComponent<AudioSource>();
+        
+        // Elegir trigger alternando izquierda/derecha
+        string trigger = nextMeleeIsLeft 
+            ? quickMeleeWeapon.leftAttackTrigger 
+            : quickMeleeWeapon.rightAttackTrigger;
+        nextMeleeIsLeft = !nextMeleeIsLeft;
+        
+        // ── 4. Lanzar animación ──
+        float animDuration = 0.6f; // duración fallback
+        if (knifeAnim != null)
+        {
+            knifeAnim.SetTrigger(trigger);
+            
+            // Esperar un frame para que transite al nuevo estado
+            yield return null;
+            
+            // Obtener duración real del clip que está sonando
+            AnimatorStateInfo stateInfo = knifeAnim.GetCurrentAnimatorStateInfo(0);
+            if (stateInfo.length > 0.05f)
+            {
+                animDuration = stateInfo.length;
+            }
+        }
+        
+        // ── 5. Sonido de ataque ──
+        if (quickMeleeWeapon.attackSound != null)
+        {
+            meleeAudio.PlayOneShot(quickMeleeWeapon.attackSound);
+        }
+        
+        // ── 6. Esperar al punto de impacto (mitad de la animación aprox) ──
+        float hitMoment = Mathf.Max(quickMeleeWeapon.damageDelay, animDuration * 0.35f);
+        yield return new WaitForSeconds(hitMoment);
+        
+        // ── 7. Raycast de daño ──
+        Camera cam = quickMeleeWeapon.playerCamera;
+        if (cam == null) cam = Camera.main;
+        if (cam != null)
+        {
+            Ray ray = cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
+            RaycastHit hit;
+            bool hitEnemy = false;
+            
+            // Primero raycast preciso, luego sphere más tolerante
+            if (Physics.Raycast(ray, out hit, quickMeleeWeapon.attackRange, quickMeleeWeapon.damageableLayers))
+            {
+                hitEnemy = TryApplyMeleeDamage(hit.collider.gameObject, hit.point, ray.direction, quickMeleeWeapon.damage);
+            }
+            else if (Physics.SphereCast(ray, quickMeleeWeapon.attackRadius, out hit, quickMeleeWeapon.attackRange, quickMeleeWeapon.damageableLayers))
+            {
+                hitEnemy = TryApplyMeleeDamage(hit.collider.gameObject, hit.point, ray.direction, quickMeleeWeapon.damage);
+            }
+            
+            if (hitEnemy)
+            {
+                // Sonido de impacto en enemigo
+                if (quickMeleeWeapon.hitEnemySound != null)
+                    meleeAudio.PlayOneShot(quickMeleeWeapon.hitEnemySound);
+                else if (quickMeleeWeapon.hitSound != null)
+                    meleeAudio.PlayOneShot(quickMeleeWeapon.hitSound);
+                    
+                // Efecto de sangre
+                if (hit.collider != null)
+                    BloodSplashEffect.Spawn(hit.point, hit.normal);
+                    
+                Debug.Log($"[QuickMelee] ¡Impacto! Daño {quickMeleeWeapon.damage} a {hit.collider.gameObject.name}");
+            }
+        }
+        
+        // ── 8. Esperar a que termine la animación COMPLETA ──
+        float remaining = animDuration - hitMoment;
+        if (remaining > 0f)
+            yield return new WaitForSeconds(remaining);
+        
+        // Pequeña pausa extra para que se sienta bien el golpe
+        yield return new WaitForSeconds(0.05f);
+        
+        // ── 9. Ocultar cuchillo y restaurar arma ──
+        quickMeleeWeapon.gameObject.SetActive(false);
+        
+        if (weaponToRestore != null)
+        {
+            weaponToRestore.gameObject.SetActive(true);
+        }
+        
+        isQuickMeleeing = false;
+    }
+
+    bool TryApplyMeleeDamage(GameObject target, Vector3 hitPoint, Vector3 direction, float damageAmount)
+    {
+        EnemyHealth enemyHealth = target.GetComponent<EnemyHealth>();
+        if (enemyHealth == null) enemyHealth = target.GetComponentInParent<EnemyHealth>();
+        if (enemyHealth == null) enemyHealth = target.GetComponentInChildren<EnemyHealth>();
+        
+        if (enemyHealth != null)
+        {
+            enemyHealth.TakeDamage(damageAmount, hitPoint, false);
+            Debug.Log($"[QuickMelee] ¡DAÑO APLICADO! {damageAmount} a '{enemyHealth.gameObject.name}'");
+            return true;
+        }
+        return false;
+    }
+
     void EquipWeapon(int index)
     {
-        Debug.Log($"[EquipWeapon] Intentando cambiar a índice {index}. currentWeaponIndex={currentWeaponIndex}, isMelee={isMeleeActive}");
+        Debug.Log($"[EquipWeapon] Intentando cambiar a índice {index}. currentWeaponIndex={currentWeaponIndex}");
         
-        // Si es la misma arma y no estamos en melee, no hacer nada
-        if (!isMeleeActive && currentWeapon != null && currentWeaponIndex == index) 
+        // Si es la misma arma, no hacer nada
+        if (currentWeapon != null && currentWeaponIndex == index) 
         {
-            Debug.Log("[EquipWeapon] Es la misma arma, cancelando");
             return;
         }
 
@@ -195,117 +287,46 @@ public class WeaponSwitcher : MonoBehaviour
         if (isSwitching) return;
 
         pendingWeaponIndex = index;
-        pendingIsMelee = false;
 
-        // Si hay un arma melee activa, guardarla primero
-        if (isMeleeActive && currentMeleeWeapon != null && currentMeleeWeapon.gameObject.activeSelf)
-        {
-            isSwitching = true;
-            currentMeleeWeapon.OnHolsterComplete += OnHolsterFinished;
-            currentMeleeWeapon.HolsterWeapon();
-        }
         // Si hay un arma de fuego actual, guardarla primero con animación
-        else if (currentWeapon != null && currentWeapon.gameObject.activeSelf)
         if (currentWeapon != null && currentWeapon.gameObject.activeSelf)
         {
             isSwitching = true;
-            Debug.Log($"[EquipWeapon] Guardando arma actual: {currentWeapon.weaponName}");
-            
-            // Suscribirse al evento de cuando termine de guardar
             currentWeapon.OnHolsterComplete += OnHolsterFinished;
             currentWeapon.HolsterWeapon();
         }
         else
         {
             // No hay arma actual, equipar directamente
-            FinishEquip(index, false);
-        }
-    }
-    
-    /// <summary>
-    /// Equipar un arma cuerpo a cuerpo
-    /// </summary>
-    void EquipMeleeWeapon(int index)
-    {
-        if (meleeWeapons.Length == 0 || index >= meleeWeapons.Length) return;
-        
-        // Si ya tenemos esta melee activa, no hacer nada
-        if (isMeleeActive && currentMeleeWeapon == meleeWeapons[index]) return;
-        
-        if (isSwitching) return;
-        
-        pendingWeaponIndex = index;
-        pendingIsMelee = true;
-        
-        // Guardar arma de fuego actual si está activa
-        if (!isMeleeActive && currentWeapon != null && currentWeapon.gameObject.activeSelf)
-        {
-            isSwitching = true;
-            currentWeapon.OnHolsterComplete += OnHolsterFinished;
-            currentWeapon.HolsterWeapon();
-        }
-        // Guardar melee actual si está activa
-        else if (isMeleeActive && currentMeleeWeapon != null && currentMeleeWeapon.gameObject.activeSelf)
-        {
-            isSwitching = true;
-            currentMeleeWeapon.OnHolsterComplete += OnHolsterFinished;
-            currentMeleeWeapon.HolsterWeapon();
-        }
-        else
-        {
-            FinishEquip(index, true);
+            FinishEquip(index);
         }
     }
 
     void OnHolsterFinished()
     {
-        // Desuscribirse del evento de arma de fuego
+        // Desuscribirse del evento
         if (currentWeapon != null)
         {
             currentWeapon.OnHolsterComplete -= OnHolsterFinished;
         }
-        
-        // Desuscribirse del evento de melee
-        if (currentMeleeWeapon != null)
-        {
-            currentMeleeWeapon.OnHolsterComplete -= OnHolsterFinished;
-        }
 
-        // Ahora equipar la nueva arma
-        FinishEquip(pendingWeaponIndex, pendingIsMelee);
+        // Equipar la nueva arma
+        FinishEquip(pendingWeaponIndex);
     }
 
-    void FinishEquip(int index, bool isMelee)
+    void FinishEquip(int index)
     {
-        if (isMelee)
-        {
-            // Equipar arma melee
-            currentMeleeWeapon = meleeWeapons[index];
-            currentWeapon = null;
-            isMeleeActive = true;
-            
-            Debug.Log($"[EquipWeapon] Sacando melee: {currentMeleeWeapon.weaponName}");
-            currentMeleeWeapon.DrawWeapon();
-        }
-        else
-        {
-            // Equipar arma de fuego
-            currentWeaponIndex = index;
-            currentWeapon = weapons[currentWeaponIndex];
-            currentMeleeWeapon = null;
-            isMeleeActive = false;
-            
-            Debug.Log($"[EquipWeapon] Sacando arma: {currentWeapon.weaponName}");
-            currentWeapon.DrawWeapon();
-        }
+        // Equipar arma de fuego
+        currentWeaponIndex = index;
+        currentWeapon = weapons[currentWeaponIndex];
+        
+        Debug.Log($"[EquipWeapon] Sacando arma: {currentWeapon.weaponName}");
+        currentWeapon.DrawWeapon();
         
         isSwitching = false;
         pendingWeaponIndex = -1;
 
-        if (isMelee && currentMeleeWeapon != null)
-            Debug.Log($"Arma equipada (melee): {currentMeleeWeapon.weaponName}");
-        else if (!isMelee && currentWeapon != null)
-            Debug.Log($"Arma equipada: {currentWeapon.weaponName}");
+        Debug.Log($"Arma equipada: {currentWeapon.weaponName}");
     }
 
     /// <summary>

@@ -46,6 +46,16 @@ public class BoatController : MonoBehaviour
     [Tooltip("Distancia para detectar agua debajo del barco")]
     public float waterCheckDistance = 5f;
     
+    [Header("=== COLISIÓN CON TIERRA ===")]
+    [Tooltip("El barco no puede meterse en el terreno")]
+    public bool preventTerrainClipping = true;
+    [Tooltip("Radio del barco para detectar obstáculos (ajusta según el tamaño del barco)")]
+    public float boatRadius = 2.5f;
+    [Tooltip("Distancia de detección de terreno por delante")]
+    public float terrainCheckDistance = 3f;
+    [Tooltip("Layers que considera terreno/tierra (deja en Default si no sabes)")]
+    public LayerMask terrainLayers = ~0; // Todo por defecto
+
     [Header("=== CÁMARA ===")]
     [Tooltip("Usar cámara en tercera persona al conducir")]
     public bool useBoatCamera = true;
@@ -209,6 +219,34 @@ public class BoatController : MonoBehaviour
         
         // Mover el barco
         Vector3 movement = moveDirection * currentSpeed * Time.deltaTime;
+
+        // Comprobar colisión con terreno antes de mover
+        if (preventTerrainClipping && currentSpeed != 0f)
+        {
+            Vector3 checkOrigin = transform.position + Vector3.up * 0.5f;
+            Vector3 checkDir    = new Vector3(movement.x, 0f, movement.z).normalized;
+            float   checkDist   = terrainCheckDistance + Mathf.Abs(currentSpeed) * Time.deltaTime;
+
+            if (Physics.SphereCast(checkOrigin, boatRadius, checkDir, out RaycastHit terrainHit,
+                checkDist, terrainLayers, QueryTriggerInteraction.Ignore))
+            {
+                // Ignorar objetos con tag Water, Enemy, Player o triggers
+                string hitName = terrainHit.collider.gameObject.name.ToLower();
+                string hitTag  = terrainHit.collider.gameObject.tag;
+                bool isWater   = terrainHit.collider.CompareTag("Water") ||
+                                 terrainHit.collider.isTrigger ||
+                                 hitName.Contains("water");
+                bool isCharacter = hitTag == "Player" || hitTag == "Enemy";
+
+                if (!isWater && !isCharacter)
+                {
+                    // Frenar bruscamente
+                    currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, Mathf.Abs(currentSpeed) + 5f);
+                    movement     = Vector3.zero;
+                    Debug.Log($"[Barco] Colisión con tierra: {terrainHit.collider.gameObject.name}");
+                }
+            }
+        }
         
         // Aplicar flotación mientras se conduce
         if (simulateFloating)
