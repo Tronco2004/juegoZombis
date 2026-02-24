@@ -64,6 +64,19 @@ public class FirstPersonController : MonoBehaviour
     private float currentHeight;
     private Vector3 cameraStandingPos;
 
+    // Sonidos de pasos
+    private float footstepTimer = 0f;
+    [Header("Sonidos de Pasos (Config)")]
+    [Tooltip("Intervalo entre pasos caminando (segundos)")]
+    public float walkStepInterval = 0.5f;
+    [Tooltip("Intervalo entre pasos corriendo (segundos)")]
+    public float runStepInterval = 0.3f;
+    [Tooltip("Intervalo entre pasos agachado (segundos)")]
+    public float crouchStepInterval = 0.7f;
+    [Tooltip("Volumen de los pasos (0-1)")]
+    [Range(0f, 1f)]
+    public float footstepVolume = 0.5f;
+
     // Propiedad pública para saber si está en el suelo
     public bool IsGrounded => controller.isGrounded;
     public bool IsRunning => isRunning;
@@ -112,14 +125,24 @@ public class FirstPersonController : MonoBehaviour
         {
             cameraStandingPos = playerCamera.localPosition;
         }
+
+        // Auto-crear AudioSource para pasos si no se asignó
+        if (footstepAudio == null && footstepSounds != null && footstepSounds.Length > 0)
+        {
+            footstepAudio = gameObject.AddComponent<AudioSource>();
+            footstepAudio.playOnAwake = false;
+            footstepAudio.spatialBlend = 0f; // 2D para el jugador local
+            Debug.Log("[FirstPersonController] AudioSource para pasos creado automáticamente.");
+        }
         
         Debug.Log("[FirstPersonController] Standing Height: " + standingHeight + " | Crouch Height: " + crouchHeight);
     }
 
     void Update()
     {
-        // No procesar input si el juego está pausado
+        // No procesar input si el juego está pausado o en pantalla de resultado
         if (PauseManager.IsPaused) return;
+        if (GameResultScreen.IsGameOver) return;
         
         HandleMovement();
         HandleCrouch();
@@ -178,6 +201,41 @@ public class FirstPersonController : MonoBehaviour
 
         // Mover el personaje
         controller.Move(moveDirection * Time.deltaTime);
+
+        // Sonidos de pasos
+        HandleFootsteps(isMoving);
+    }
+
+    void HandleFootsteps(bool isMoving)
+    {
+        if (footstepAudio == null || footstepSounds == null || footstepSounds.Length == 0)
+            return;
+
+        if (!isMoving || !controller.isGrounded)
+        {
+            footstepTimer = 0f;
+            return;
+        }
+
+        // Intervalo según estado
+        float interval;
+        if (isCrouching)
+            interval = crouchStepInterval;
+        else if (isRunning)
+            interval = runStepInterval;
+        else
+            interval = walkStepInterval;
+
+        footstepTimer += Time.deltaTime;
+        if (footstepTimer >= interval)
+        {
+            footstepTimer = 0f;
+            AudioClip clip = footstepSounds[Random.Range(0, footstepSounds.Length)];
+            if (clip != null)
+            {
+                footstepAudio.PlayOneShot(clip, footstepVolume);
+            }
+        }
     }
 
     void HandleCrouch()

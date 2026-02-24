@@ -88,12 +88,22 @@ public class HelicopterController : MonoBehaviour
     public float cameraAngleOffset = 0f;
 
     [Header("=== EFECTOS (Opcional) ===")]
-    [Tooltip("Sonido del motor/rotor")]
+    [Tooltip("Sonido del motor/rotor (loop)")]
     public AudioClip engineSound;
-    [Tooltip("Sonido al arrancar")]
+    [Tooltip("Sonido al arrancar (one-shot)")]
     public AudioClip startupSound;
-    [Tooltip("Sonido al apagar")]
+    [Tooltip("Sonido al apagar (one-shot)")]
     public AudioClip shutdownSound;
+    [Tooltip("Volumen del motor en ralentí (rotores girando, sin moverse)")]
+    [Range(0f, 1f)]
+    public float engineIdleVolume = 0.5f;
+    [Tooltip("Volumen máximo del motor (a plena potencia)")]
+    [Range(0f, 1f)]
+    public float engineMaxVolume = 1f;
+    [Tooltip("Pitch del motor en ralentí")]
+    public float engineIdlePitch = 0.6f;
+    [Tooltip("Pitch del motor a plena potencia")]
+    public float engineMaxPitch = 1.3f;
     [Tooltip("Partículas de polvo al estar cerca del suelo")]
     public ParticleSystem dustEffect;
     [Tooltip("Distancia al suelo para activar el polvo")]
@@ -231,6 +241,9 @@ public class HelicopterController : MonoBehaviour
             if (rotorPower > 0f)
                 rotorPower = Mathf.MoveTowards(rotorPower, 0f, Time.deltaTime / (spoolTime * 2f));
 
+            // Actualizar audio también cuando no se pilota (fade out suave)
+            UpdateEngineAudio();
+
             // Gravedad si está en el aire
             if (!IsGrounded())
             {
@@ -280,7 +293,11 @@ public class HelicopterController : MonoBehaviour
                 vSpeed -= gravity * 0.5f * Time.deltaTime;
         }
 
-        // Audio del motor
+        UpdateEngineAudio();
+    }
+
+    void UpdateEngineAudio()
+    {
         if (audioSrc == null || engineSound == null) return;
 
         if (rotorPower > 0.01f)
@@ -291,8 +308,8 @@ public class HelicopterController : MonoBehaviour
                 audioSrc.Play();
                 engineAudioPlaying = true;
             }
-            audioSrc.pitch  = 0.5f + rotorPower * 0.8f;
-            audioSrc.volume = 0.3f + rotorPower * 0.7f;
+            audioSrc.pitch  = Mathf.Lerp(engineIdlePitch, engineMaxPitch, rotorPower);
+            audioSrc.volume = Mathf.Lerp(engineIdleVolume, engineMaxVolume, rotorPower);
         }
         else if (engineAudioPlaying)
         {
@@ -647,7 +664,22 @@ public class HelicopterController : MonoBehaviour
 
     Vector3 FindExitPosition()
     {
-        // Buscar suelo en 8 direcciones alrededor del helicóptero
+        // Usar directamente el exitPoint (GameObject hijo del helicóptero)
+        if (exitPoint != null)
+        {
+            // Lanzar un rayo hacia abajo desde el exitPoint para encontrar el suelo
+            Vector3 origin = exitPoint.position + Vector3.up * 2f;
+            RaycastHit hit;
+            if (Physics.Raycast(origin, Vector3.down, out hit, 15f))
+            {
+                // Poner al jugador sobre el suelo
+                return hit.point + Vector3.up * 1f;
+            }
+            // Si no hay suelo, usar la posición del exitPoint directamente
+            return exitPoint.position;
+        }
+
+        // Fallback: buscar suelo en 8 direcciones alrededor del helicóptero
         Vector3[] dirs = {
             transform.right, -transform.right,
             transform.forward, -transform.forward,
@@ -657,7 +689,7 @@ public class HelicopterController : MonoBehaviour
             (-transform.right - transform.forward).normalized
         };
 
-        Vector3 best = exitPoint != null ? exitPoint.position : transform.position + Vector3.up * 2f;
+        Vector3 best = transform.position + Vector3.up * 2f;
         float bestDist = float.MaxValue;
 
         foreach (Vector3 dir in dirs)
@@ -665,14 +697,14 @@ public class HelicopterController : MonoBehaviour
             for (float d = 2.5f; d <= 6f; d += 1.5f)
             {
                 Vector3 checkPos = transform.position + dir * d + Vector3.up * 5f;
-                RaycastHit hit;
-                if (Physics.Raycast(checkPos, Vector3.down, out hit, 15f))
+                RaycastHit hitFallback;
+                if (Physics.Raycast(checkPos, Vector3.down, out hitFallback, 15f))
                 {
-                    float dist = Vector3.Distance(transform.position, hit.point);
+                    float dist = Vector3.Distance(transform.position, hitFallback.point);
                     if (dist < bestDist)
                     {
                         bestDist = dist;
-                        best = hit.point + Vector3.up * 1f;
+                        best = hitFallback.point + Vector3.up * 1f;
                     }
                 }
             }

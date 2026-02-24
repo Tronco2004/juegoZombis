@@ -85,6 +85,9 @@ public class HelicopterInteraction : MonoBehaviour
     void OnGUI()
     {
         if (heliController == null) return;
+        
+        // No mostrar nada si el juego terminó (victoria/derrota)
+        if (GameResultScreen.IsGameOver) return;
 
         // Inicializar estilos si es necesario
         if (promptStyle == null)
@@ -104,23 +107,11 @@ public class HelicopterInteraction : MonoBehaviour
 
         if (heliController.IsBeingPiloted())
         {
-            // Info de vuelo
-            float speed = heliController.GetCurrentSpeed();
             float altitude = heliController.GetAltitude();
-            float vSpeed = heliController.GetVerticalSpeed();
-            float rotorPower = heliController.GetRotorPower() * 100f;
-
-            string vSpeedStr = vSpeed >= 0 ? "▲ " + vSpeed.ToString("F1") : "▼ " + Mathf.Abs(vSpeed).ToString("F1");
-
-            // ¿Puede bajar?
             bool canExit = altitude <= 5f;
 
-            texto = (canExit ? exitMessage : tooHighMessage) + "\n"
-                  + "Vel: " + speed.ToString("F0") + " km/h | Alt: " + altitude.ToString("F0") + "m | "
-                  + vSpeedStr + " m/s\n"
-                  + "Rotor: " + rotorPower.ToString("F0") + "%";
-
-            textColor = canExit ? Color.cyan : new Color(1f, 0.5f, 0.2f); // Naranja si no puede bajar
+            texto = canExit ? exitMessage : tooHighMessage;
+            textColor = canExit ? Color.cyan : new Color(1f, 0.5f, 0.2f);
         }
         else if (playerInRange)
         {

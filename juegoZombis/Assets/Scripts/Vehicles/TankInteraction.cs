@@ -84,6 +84,9 @@ public class TankInteraction : MonoBehaviour
     void OnGUI()
     {
         if (tankController == null) return;
+        
+        // No mostrar nada si el juego terminó (victoria/derrota)
+        if (GameResultScreen.IsGameOver) return;
 
         string msg = null;
 

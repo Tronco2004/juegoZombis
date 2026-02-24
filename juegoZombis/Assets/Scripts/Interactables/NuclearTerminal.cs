@@ -11,13 +11,18 @@ public class NuclearTerminal : MonoBehaviour
     // PLAYING = reproduciendo audios (jugador libre)
     // READY = audios terminados, esperando segunda E
     // INPUT = interfaz abierta, jugador escribiendo
-    // DONE = código correcto, bomba activada
-    public enum State { IDLE, PLAYING, READY, INPUT, DONE }
+    // COUNTDOWN = código correcto, cuenta atrás para escapar
+    // DONE = bomba detonada
+    public enum State { IDLE, PLAYING, READY, INPUT, COUNTDOWN, DONE }
     public State state = State.IDLE;
 
     [Header("Código")]
     public int codeLength = 6;
     public float timeBetweenNumbers = 1.5f;
+
+    [Header("Cuenta Atrás")]
+    [Tooltip("Segundos que tiene el jugador para escapar en helicóptero antes de la explosión")]
+    public float countdownTime = 25f;
 
     [Header("Audios")]
     public AudioClip[] numberAudios = new AudioClip[10];
@@ -36,6 +41,12 @@ public class NuclearTerminal : MonoBehaviour
     private TextMeshProUGUI messageText;
     private EventSystem eventSystem;
 
+    // Countdown UI
+    private TextMeshProUGUI countdownText;
+    private Canvas countdownCanvas;
+    private float currentCountdown;
+    private bool countdownActive = false;
+
     void Start()
     {
         audioSource = GetComponent<AudioSource>();
@@ -51,6 +62,7 @@ public class NuclearTerminal : MonoBehaviour
 
         // Crear la interfaz de input (oculta)
         CreateInputUI();
+        CreateCountdownUI();
 
         // Asegurar EventSystem
         eventSystem = FindObjectOfType<EventSystem>();
@@ -189,6 +201,7 @@ public class NuclearTerminal : MonoBehaviour
         yield return new WaitForSeconds(1f);
         CloseInputUI();
 
+        // Iniciar sirena nuclear en loop
         if (nuclearSiren != null)
         {
             audioSource.clip = nuclearSiren;
@@ -196,12 +209,16 @@ public class NuclearTerminal : MonoBehaviour
             audioSource.Play();
         }
 
-        yield return new WaitForSeconds(1f);
-        Debug.Log("¡BOMBA NUCLEAR ACTIVADA!");
-        onNuclearActivated.Invoke();
+        // Iniciar cuenta atrás — el jugador tiene que correr al helicóptero
+        state = State.COUNTDOWN;
+        currentCountdown = countdownTime;
+        countdownActive = true;
+        countdownCanvas.gameObject.SetActive(true);
+
+        Debug.Log($"[NuclearTerminal] ¡CUENTA ATRÁS INICIADA! {countdownTime} segundos para escapar.");
     }
 
-    // === DETECTAR ENTER PARA ENVIAR ===
+    // === DETECTAR ENTER PARA ENVIAR + COUNTDOWN ===
     void Update()
     {
         if (state == State.INPUT && Input.GetKeyDown(KeyCode.Return))
@@ -211,6 +228,56 @@ public class NuclearTerminal : MonoBehaviour
         {
             CloseInputUI();
             state = State.READY;
+        }
+
+        // Cuenta atrás activa
+        if (countdownActive && state == State.COUNTDOWN)
+        {
+            currentCountdown -= Time.deltaTime;
+
+            // Actualizar texto del countdown
+            if (countdownText != null)
+            {
+                int minutes = Mathf.FloorToInt(currentCountdown / 60f);
+                int seconds = Mathf.FloorToInt(currentCountdown % 60f);
+                countdownText.text = string.Format("{0:00}:{1:00}", minutes, seconds);
+
+                // Cambiar color según urgencia
+                if (currentCountdown <= 10f)
+                    countdownText.color = Color.red;
+                else if (currentCountdown <= 20f)
+                    countdownText.color = new Color(1f, 0.5f, 0f); // Naranja
+                else
+                    countdownText.color = new Color(1f, 0.2f, 0.2f); // Rojo suave
+                    
+                // Parpadeo en los últimos 10 segundos
+                if (currentCountdown <= 10f)
+                {
+                    float alpha = Mathf.Abs(Mathf.Sin(Time.time * 5f));
+                    Color c = countdownText.color;
+                    c.a = Mathf.Lerp(0.4f, 1f, alpha);
+                    countdownText.color = c;
+                }
+            }
+
+            // ¡BOOM!
+            if (currentCountdown <= 0f)
+            {
+                currentCountdown = 0f;
+                countdownActive = false;
+                state = State.DONE;
+                
+                // Parar sirena
+                if (audioSource != null)
+                    audioSource.Stop();
+
+                // Ocultar countdown
+                if (countdownCanvas != null)
+                    countdownCanvas.gameObject.SetActive(false);
+
+                Debug.Log("[NuclearTerminal] ¡TIEMPO! ¡DETONANDO BOMBA NUCLEAR!");
+                onNuclearActivated.Invoke();
+            }
         }
     }
 
@@ -325,6 +392,77 @@ public class NuclearTerminal : MonoBehaviour
         helpRect.anchorMax = new Vector2(0.5f, 0.5f);
         helpRect.sizeDelta = new Vector2(600, 40);
         helpRect.anchoredPosition = new Vector2(0, -180);
+
+        // Ocultar al inicio
+        canvasObj.SetActive(false);
+    }
+
+    // === CREAR UI DE CUENTA ATRÁS ===
+    void CreateCountdownUI()
+    {
+        GameObject canvasObj = new GameObject("NuclearCountdownCanvas");
+        countdownCanvas = canvasObj.AddComponent<Canvas>();
+        countdownCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        countdownCanvas.sortingOrder = 150;
+
+        CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.referenceResolution = new Vector2(1920, 1080);
+
+        // Fondo semitransparente arriba
+        GameObject bgObj = new GameObject("CountdownBG");
+        bgObj.transform.SetParent(canvasObj.transform, false);
+        Image bg = bgObj.AddComponent<Image>();
+        bg.color = new Color(0f, 0f, 0f, 0.5f);
+        RectTransform bgRect = bgObj.GetComponent<RectTransform>();
+        bgRect.anchorMin = new Vector2(0.3f, 0.85f);
+        bgRect.anchorMax = new Vector2(0.7f, 1f);
+        bgRect.offsetMin = Vector2.zero;
+        bgRect.offsetMax = Vector2.zero;
+
+        // Título "EVACUACIÓN"
+        GameObject titleObj = new GameObject("EvacTitle");
+        titleObj.transform.SetParent(canvasObj.transform, false);
+        TextMeshProUGUI title = titleObj.AddComponent<TextMeshProUGUI>();
+        title.text = "⚠ EVACUACIÓN NUCLEAR ⚠";
+        title.fontSize = 28;
+        title.alignment = TextAlignmentOptions.Center;
+        title.color = new Color(1f, 0.3f, 0.1f);
+        title.fontStyle = FontStyles.Bold;
+        RectTransform titleRect = titleObj.GetComponent<RectTransform>();
+        titleRect.anchorMin = new Vector2(0.3f, 0.93f);
+        titleRect.anchorMax = new Vector2(0.7f, 1f);
+        titleRect.offsetMin = Vector2.zero;
+        titleRect.offsetMax = Vector2.zero;
+
+        // Timer grande
+        GameObject timerObj = new GameObject("CountdownTimer");
+        timerObj.transform.SetParent(canvasObj.transform, false);
+        countdownText = timerObj.AddComponent<TextMeshProUGUI>();
+        countdownText.text = "01:00";
+        countdownText.fontSize = 60;
+        countdownText.alignment = TextAlignmentOptions.Center;
+        countdownText.color = new Color(1f, 0.2f, 0.2f);
+        countdownText.fontStyle = FontStyles.Bold;
+        RectTransform timerRect = timerObj.GetComponent<RectTransform>();
+        timerRect.anchorMin = new Vector2(0.3f, 0.85f);
+        timerRect.anchorMax = new Vector2(0.7f, 0.95f);
+        timerRect.offsetMin = Vector2.zero;
+        timerRect.offsetMax = Vector2.zero;
+
+        // Subtítulo "Sube al helicóptero"
+        GameObject subObj = new GameObject("EvacSubtitle");
+        subObj.transform.SetParent(canvasObj.transform, false);
+        TextMeshProUGUI sub = subObj.AddComponent<TextMeshProUGUI>();
+        sub.text = "¡SUBE AL HELICÓPTERO Y ESCAPA!";
+        sub.fontSize = 20;
+        sub.alignment = TextAlignmentOptions.Center;
+        sub.color = Color.white;
+        RectTransform subRect = subObj.GetComponent<RectTransform>();
+        subRect.anchorMin = new Vector2(0.3f, 0.82f);
+        subRect.anchorMax = new Vector2(0.7f, 0.87f);
+        subRect.offsetMin = Vector2.zero;
+        subRect.offsetMax = Vector2.zero;
 
         // Ocultar al inicio
         canvasObj.SetActive(false);

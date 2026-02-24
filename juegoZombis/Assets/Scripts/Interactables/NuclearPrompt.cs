@@ -28,8 +28,10 @@ public class NuclearPrompt : MonoBehaviour
         // Solo permitir E si estamos en rango y en un estado válido
         if (playerInRange && Input.GetKeyDown(interactKey))
         {
-            // No interceptar E si está en modo INPUT (escribiendo)
-            if (terminal.state != NuclearTerminal.State.INPUT)
+            // No interceptar E si está en modo INPUT, COUNTDOWN o DONE
+            if (terminal.state != NuclearTerminal.State.INPUT && 
+                terminal.state != NuclearTerminal.State.COUNTDOWN &&
+                terminal.state != NuclearTerminal.State.DONE)
                 terminal.Interact();
         }
     }
@@ -39,8 +41,13 @@ public class NuclearPrompt : MonoBehaviour
         if (!playerInRange || terminal == null)
             return;
         
-        // No mostrar prompt si ya terminó o está escribiendo
-        if (terminal.state == NuclearTerminal.State.DONE || terminal.state == NuclearTerminal.State.INPUT)
+        // No mostrar nada si el juego terminó (victoria/derrota)
+        if (GameResultScreen.IsGameOver) return;
+        
+        // No mostrar prompt si ya terminó, está escribiendo o en cuenta atrás
+        if (terminal.state == NuclearTerminal.State.DONE || 
+            terminal.state == NuclearTerminal.State.INPUT ||
+            terminal.state == NuclearTerminal.State.COUNTDOWN)
             return;
         
         string promptText = "";

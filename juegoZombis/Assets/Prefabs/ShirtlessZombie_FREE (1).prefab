@@ -195,14 +195,15 @@ MonoBehaviour:
   attackCooldown: 1
   damage: 20
   playerTag: Player
-  idleSounds: []
+  idleSounds:
+  - {fileID: 8300000, guid: 2ebee3161b0a3f142ab5371f15b21a47, type: 3}
   chaseSounds: []
   attackSounds: []
   deathSounds: []
   screamSounds: []
   crawlSounds: []
   hurtSounds: []
-  soundVolume: 0.25
+  soundVolume: 0.607
   groanInterval: 8
   groanIntervalVariation: 4
   maxSoundDistance: 20
@@ -210,6 +211,8 @@ MonoBehaviour:
   animController: {fileID: 0}
   crawlSpeed: 1.5
   crawlAttackRange: 1.5
+  shotSlowSpeed: 2
+  shotSlowDuration: 2
   isMansionZombie: 0
   spawnZone: 0
   proximityAlertRange: 5
@@ -232,8 +235,8 @@ BoxCollider:
   m_ProvidesContacts: 0
   m_Enabled: 1
   serializedVersion: 3
-  m_Size: {x: 1, y: 2.6691236, z: 1}
-  m_Center: {x: 0, y: 0.8345618, z: 0}
+  m_Size: {x: 1, y: 1.684001, z: 1}
+  m_Center: {x: 0, y: 0.8863046, z: 0}
 --- !u!54 &1981374826060426231
 Rigidbody:
   m_ObjectHideFlags: 0

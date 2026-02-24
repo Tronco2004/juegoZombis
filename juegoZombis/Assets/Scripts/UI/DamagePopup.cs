@@ -1,4 +1,9 @@
 using UnityEngine;
+
+/// <summary>
+/// Números de daño flotantes sobre los enemigos.
+/// Siempre miran de frente a la cámara del jugador.
+/// </summary>
 public class DamagePopup : MonoBehaviour
 {
     private TextMesh textMesh;
@@ -52,15 +57,18 @@ public class DamagePopup : MonoBehaviour
 
         float progress = 1f - (timer / lifetime);
 
-        // Subir suavemente solo 0.7m (antes era 2m — demasiado)
+        // Subir suavemente solo 0.7m
         float rise = Mathf.Lerp(0f, 0.7f, Mathf.SmoothStep(0f, 1f, progress));
         transform.position = startPos + Vector3.up * rise + randomOffset * progress;
 
-        // Billboard: SOLO rotar en Y para mirar a la cámara, siempre recto
-        Vector3 dirToCam = cam.transform.position - transform.position;
-        float angleY = Mathf.Atan2(dirToCam.x, dirToCam.z) * Mathf.Rad2Deg;
-        // TextMesh se ve desde -Z, así que giramos 180 grados
-        transform.rotation = Quaternion.Euler(0f, angleY + 180f, 0f);
+        // BILLBOARD — TextMesh renderiza texto visible en la cara -Z.
+        // Para que se vea de frente, +Z debe apuntar LEJOS de la cámara.
+        // Rotamos completamente hacia la cámara para que se vea bien desde cualquier ángulo.
+        Vector3 awayFromCam = transform.position - cam.transform.position;
+        if (awayFromCam.sqrMagnitude > 0.0001f)
+        {
+            transform.rotation = Quaternion.LookRotation(awayFromCam.normalized, Vector3.up);
+        }
 
         timer -= Time.deltaTime;
 

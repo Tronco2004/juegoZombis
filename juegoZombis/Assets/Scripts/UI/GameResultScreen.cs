@@ -5,17 +5,20 @@ using TMPro;
 using System.Collections;
 
 /// <summary>
-/// Pantalla de Victoria y Derrota.
+/// Pantalla de Victoria y Derrota — diseño profesional.
 /// Se auto-genera, no necesita ningún prefab.
 ///
 /// DERROTA:  se activa cuando el jugador muere (PlayerHealth.isDead == true)
-/// VICTORIA: se activa cuando se completan todas las oleadas (configurable)
-///           o puedes llamar a GameResultScreen.Instance.ShowVictory() manualmente
-///           desde cualquier parte del código.
+/// VICTORIA: se activa cuando se completan todas las oleadas
+///           o puedes llamar a GameResultScreen.Instance.ShowVictory()
 /// </summary>
 public class GameResultScreen : MonoBehaviour
 {
     public static GameResultScreen Instance { get; private set; }
+
+    /// <summary>True cuando se está mostrando una pantalla de resultado (derrota/victoria).
+    /// Otros scripts (armas, movimiento…) deben comprobar esto para bloquear input.</summary>
+    public static bool IsGameOver { get; private set; } = false;
 
     [Header("=== ESCENAS ===")]
     [Tooltip("Nombre exacto de la escena del menú principal")]
@@ -28,41 +31,45 @@ public class GameResultScreen : MonoBehaviour
     [Header("=== TIEMPOS ===")]
     [Tooltip("Tiempo de espera antes de mostrar la pantalla de derrota")]
     public float defeatDelay = 2f;
-    [Tooltip("Duración del fade in de la pantalla de resultado")]
-    public float fadeDuration = 0.8f;
+    [Tooltip("Duración del fade in")]
+    public float fadeDuration = 1.0f;
 
-    [Header("=== COLORES ===")]
-    public Color defeatBgColor    = new Color(0.45f, 0.05f, 0.05f, 0.97f);
-    public Color victoryBgColor   = new Color(0.05f, 0.35f, 0.05f, 0.97f);
-    public Color titleColor       = Color.white;
-    public Color subtitleColor    = new Color(0.9f, 0.9f, 0.9f, 1f);
-    public Color buttonColor      = new Color(0.1f, 0.1f, 0.1f, 1f);
-    public Color buttonHoverColor = new Color(0.25f, 0.25f, 0.25f, 1f);
-    public Color buttonTextColor  = Color.white;
+    [Header("=== AUDIO ===")]
+    [Tooltip("Canción/sonido que suena al perder. Asigna desde el Inspector.")]
+    public AudioClip defeatMusic;
+    [Tooltip("Volumen de la canción de derrota (0-1)")]
+    [Range(0f, 1f)]
+    public float defeatMusicVolume = 0.7f;
+
+    private AudioSource audioSource;
 
     // ── Estado interno ─────────────────────────────────────────
     private bool resultShown = false;
     private Canvas canvas;
     private GameObject defeatPanel;
     private GameObject victoryPanel;
+    private float gameStartTime;
 
     void Awake()
     {
         if (Instance == null) Instance = this;
         else { Destroy(gameObject); return; }
+        IsGameOver = false;
     }
 
     void Start()
     {
+        gameStartTime = Time.time;
+        // AudioSource para la música de derrota
+        audioSource = gameObject.AddComponent<AudioSource>();
+        audioSource.playOnAwake = false;
+        audioSource.loop = false;
         BuildUI();
-        
-        // Suscribirse al evento de detonación de la bomba nuclear
         NuclearBomb.OnNuclearDetonated += ShowVictory;
     }
-    
+
     void OnDestroy()
     {
-        // Desuscribirse del evento
         if (NuclearBomb.OnNuclearDetonated != null)
             NuclearBomb.OnNuclearDetonated -= ShowVictory;
     }
@@ -70,8 +77,6 @@ public class GameResultScreen : MonoBehaviour
     void Update()
     {
         if (resultShown) return;
-
-        // ── Comprobar derrota ──────────────────────────────────
         if (PlayerHealth.Instance != null && PlayerHealth.Instance.isDead)
         {
             StartCoroutine(ShowDefeatDelayed());
@@ -82,22 +87,27 @@ public class GameResultScreen : MonoBehaviour
     //  MÉTODOS PÚBLICOS
     // ══════════════════════════════════════════════════════════
 
-    /// <summary>Muestra la pantalla de victoria. Llama esto cuando el jugador gana.</summary>
     public void ShowVictory()
     {
         if (resultShown) return;
         resultShown = true;
+        IsGameOver = true;
+        StopGameMusic();
         PauseGame();
+        UpdateStats(victoryPanel);
         StartCoroutine(FadeInPanel(victoryPanel));
         Debug.Log("[GameResult] ¡VICTORIA!");
     }
 
-    /// <summary>Muestra la pantalla de derrota. Llama esto cuando el jugador muere.</summary>
     public void ShowDefeat()
     {
         if (resultShown) return;
         resultShown = true;
+        IsGameOver = true;
+        StopGameMusic();
         PauseGame();
+        PlayDefeatMusic();
+        UpdateStats(defeatPanel);
         StartCoroutine(FadeInPanel(defeatPanel));
         Debug.Log("[GameResult] DERROTA.");
     }
@@ -108,9 +118,13 @@ public class GameResultScreen : MonoBehaviour
 
     IEnumerator ShowDefeatDelayed()
     {
-        resultShown = true; // marca ya para evitar doble ejecución
+        resultShown = true;
+        IsGameOver = true;
+        StopGameMusic();
         yield return new WaitForSecondsRealtime(defeatDelay);
         PauseGame();
+        PlayDefeatMusic();
+        UpdateStats(defeatPanel);
         StartCoroutine(FadeInPanel(defeatPanel));
         Debug.Log("[GameResult] DERROTA.");
     }
@@ -119,7 +133,27 @@ public class GameResultScreen : MonoBehaviour
     {
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
-        Cursor.visible   = true;
+        Cursor.visible = true;
+    }
+
+    void PlayDefeatMusic()
+    {
+        if (defeatMusic != null && audioSource != null)
+        {
+            audioSource.clip = defeatMusic;
+            audioSource.volume = defeatMusicVolume;
+            audioSource.ignoreListenerPause = true;  // Suena incluso con timeScale=0
+            audioSource.Play();
+        }
+    }
+
+    void StopGameMusic()
+    {
+        // Para la música de fondo para que no se solape con la de derrota/victoria
+        if (GameMusicManager.Instance != null)
+        {
+            GameMusicManager.Instance.StopMusic();
+        }
     }
 
     IEnumerator FadeInPanel(GameObject panel)
@@ -127,31 +161,48 @@ public class GameResultScreen : MonoBehaviour
         panel.SetActive(true);
         CanvasGroup cg = panel.GetComponent<CanvasGroup>();
         if (cg == null) cg = panel.AddComponent<CanvasGroup>();
-
         cg.alpha = 0f;
+
         float t = 0f;
         while (t < fadeDuration)
         {
             t += Time.unscaledDeltaTime;
-            cg.alpha = Mathf.Clamp01(t / fadeDuration);
+            cg.alpha = Mathf.SmoothStep(0f, 1f, t / fadeDuration);
             yield return null;
         }
         cg.alpha = 1f;
     }
 
-    void Restart()
+    void UpdateStats(GameObject panel)
     {
-        Restart_Internal();
-    }
-
-    public void Restart_Internal()
-    {
-        Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        // Buscar los textos de stats dentro del panel y actualizarlos
+        TextMeshProUGUI[] texts = panel.GetComponentsInChildren<TextMeshProUGUI>(true);
+        foreach (var tmp in texts)
+        {
+            if (tmp.gameObject.name == "StatsPoints")
+            {
+                int pts = PlayerPoints.Instance != null ? PlayerPoints.Instance.CurrentPoints : 0;
+                tmp.text = pts.ToString("N0");
+            }
+            else if (tmp.gameObject.name == "StatsWave")
+            {
+                int wave = ZombieSpawner.Instance != null ? ZombieSpawner.Instance.CurrentWave : 0;
+                tmp.text = wave.ToString();
+            }
+            else if (tmp.gameObject.name == "StatsTime")
+            {
+                float elapsed = Time.time - gameStartTime;
+                int mins = Mathf.FloorToInt(elapsed / 60f);
+                int secs = Mathf.FloorToInt(elapsed % 60f);
+                tmp.text = $"{mins:00}:{secs:00}";
+            }
+        }
     }
 
     void GoToMainMenu()
     {
+        IsGameOver = false;
+        if (audioSource != null) audioSource.Stop();
         Time.timeScale = 1f;
         SceneManager.LoadScene(mainMenuSceneName);
     }
@@ -165,189 +216,316 @@ public class GameResultScreen : MonoBehaviour
         // Canvas
         GameObject canvasObj = new GameObject("GameResultCanvas");
         canvas = canvasObj.AddComponent<Canvas>();
-        canvas.renderMode  = RenderMode.ScreenSpaceOverlay;
-        canvas.sortingOrder = 200; // Por encima del menú de pausa
+        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        canvas.sortingOrder = 200;
 
         CanvasScaler scaler = canvasObj.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
         canvasObj.AddComponent<GraphicRaycaster>();
 
         // Paneles
-        defeatPanel  = BuildPanel(canvasObj.transform, defeatBgColor,
-            "DERROTA",       "El mundo fue consumido por los muertos...",
-            "REINTENTAR", "MENÚ PRINCIPAL");
-
-        victoryPanel = BuildPanel(canvasObj.transform, victoryBgColor,
-            "¡VICTORIA!",    "Has sobrevivido y salvado el mundo.",
-            "JUGAR DE NUEVO", "MENÚ PRINCIPAL");
+        defeatPanel = BuildDefeatPanel(canvasObj.transform);
+        victoryPanel = BuildVictoryPanel(canvasObj.transform);
 
         defeatPanel.SetActive(false);
         victoryPanel.SetActive(false);
     }
 
-    GameObject BuildPanel(Transform parent, Color bgColor,
-                          string title, string subtitle,
-                          string btn1Text, string btn2Text)
+    // ────────────────────────────────────────────────────
+    //  PANTALLA DE DERROTA
+    // ────────────────────────────────────────────────────
+    GameObject BuildDefeatPanel(Transform parent)
     {
-        // Fondo semitransparente que cubre toda la pantalla
-        GameObject overlay = CreateImage(parent, "Overlay",
-            new Color(0, 0, 0, 0.5f),
-            Vector2.zero, new Vector2(1920, 1080));
+        // Overlay oscuro
+        GameObject overlay = CreatePanel(parent, "DefeatOverlay");
+        Image overlayImg = overlay.AddComponent<Image>();
+        overlayImg.color = new Color(0f, 0f, 0f, 0.85f);
         SetFullStretch(overlay.GetComponent<RectTransform>());
 
-        // Panel central
-        GameObject panel = CreateImage(overlay.transform, "Panel",
-            bgColor, Vector2.zero, new Vector2(700, 420));
-        RectTransform pr = panel.GetComponent<RectTransform>();
-        pr.anchorMin = pr.anchorMax = pr.pivot = new Vector2(0.5f, 0.5f);
-        pr.anchoredPosition = Vector2.zero;
+        // Contenedor central
+        GameObject container = CreatePanel(overlay.transform, "Container");
+        RectTransform crt = container.GetComponent<RectTransform>();
+        crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
+        crt.sizeDelta = new Vector2(680, 520);
 
-        // Borde superior decorativo
-        GameObject topBar = CreateImage(panel.transform, "TopBar",
-            new Color(1f, 1f, 1f, 0.15f), Vector2.zero, new Vector2(700, 6));
-        RectTransform tbr = topBar.GetComponent<RectTransform>();
-        tbr.anchorMin = new Vector2(0f, 1f);
-        tbr.anchorMax = new Vector2(1f, 1f);
-        tbr.pivot     = new Vector2(0.5f, 1f);
-        tbr.offsetMin = tbr.offsetMax = Vector2.zero;
+        // ── Línea superior decorativa roja ──
+        GameObject topLine = CreatePanel(container.transform, "TopLine");
+        Image topLineImg = topLine.AddComponent<Image>();
+        topLineImg.color = new Color(0.8f, 0.15f, 0.15f, 1f);
+        RectTransform tlr = topLine.GetComponent<RectTransform>();
+        tlr.anchorMin = new Vector2(0.1f, 1f);
+        tlr.anchorMax = new Vector2(0.9f, 1f);
+        tlr.pivot = new Vector2(0.5f, 1f);
+        tlr.sizeDelta = new Vector2(0, 4);
+        tlr.anchoredPosition = Vector2.zero;
 
-        // Título
-        GameObject titleGO = CreateTMPro(panel.transform, "Title", title,
-            titleColor, 72, FontStyles.Bold);
-        RectTransform tr = titleGO.GetComponent<RectTransform>();
-        tr.anchorMin = tr.anchorMax = tr.pivot = new Vector2(0.5f, 1f);
-        tr.sizeDelta = new Vector2(650, 90);
-        tr.anchoredPosition = new Vector2(0, -50);
+        // ── Icono calavera (emoji texto) ──
+        CreateTMP(container.transform, "Skull", "☠",
+            new Color(0.85f, 0.2f, 0.2f, 1f), 64, FontStyles.Normal,
+            new Vector2(0.5f, 1f), new Vector2(100, 80), new Vector2(0, -15));
 
-        // Subtítulo
-        GameObject subGO = CreateTMPro(panel.transform, "Subtitle", subtitle,
-            subtitleColor, 28, FontStyles.Normal);
-        RectTransform sr = subGO.GetComponent<RectTransform>();
-        sr.anchorMin = sr.anchorMax = sr.pivot = new Vector2(0.5f, 1f);
-        sr.sizeDelta = new Vector2(620, 60);
-        sr.anchoredPosition = new Vector2(0, -155);
+        // ── Título DERROTA ──
+        CreateTMP(container.transform, "Title", "DERROTA",
+            new Color(0.9f, 0.2f, 0.2f, 1f), 58, FontStyles.Bold,
+            new Vector2(0.5f, 1f), new Vector2(600, 70), new Vector2(0, -85));
 
-        // Estadísticas (puntos obtenidos)
-        string statsStr = PlayerPoints.Instance != null
-            ? $"Puntos conseguidos: {PlayerPoints.Instance.CurrentPoints}"
-            : "";
-        GameObject statsGO = CreateTMPro(panel.transform, "Stats", statsStr,
-            new Color(1f, 0.85f, 0.2f, 1f), 32, FontStyles.Bold);
-        RectTransform str2 = statsGO.GetComponent<RectTransform>();
-        str2.anchorMin = str2.anchorMax = str2.pivot = new Vector2(0.5f, 1f);
-        str2.sizeDelta = new Vector2(620, 50);
-        str2.anchoredPosition = new Vector2(0, -225);
+        // ── Subtítulo ──
+        CreateTMP(container.transform, "Subtitle", "Los muertos han reclamado el mundo...",
+            new Color(0.7f, 0.7f, 0.7f, 1f), 22, FontStyles.Italic,
+            new Vector2(0.5f, 1f), new Vector2(600, 35), new Vector2(0, -155));
 
-        // Botón 1 — Reintentar / Jugar de nuevo
-        GameObject b1 = CreateButton(panel.transform, "Btn1", btn1Text,
-            new Vector2(0, -300), new Vector2(280, 60));
-        b1.GetComponent<Button>().onClick.AddListener(Restart);
+        // ── Línea separadora ──
+        GameObject sepLine = CreatePanel(container.transform, "SepLine");
+        Image sepImg = sepLine.AddComponent<Image>();
+        sepImg.color = new Color(1f, 1f, 1f, 0.15f);
+        RectTransform slr = sepLine.GetComponent<RectTransform>();
+        slr.anchorMin = slr.anchorMax = slr.pivot = new Vector2(0.5f, 1f);
+        slr.sizeDelta = new Vector2(500, 1);
+        slr.anchoredPosition = new Vector2(0, -195);
 
-        // Botón 2 — Menú principal
-        GameObject b2 = CreateButton(panel.transform, "Btn2", btn2Text,
-            new Vector2(0, -375), new Vector2(280, 60));
-        b2.GetComponent<Button>().onClick.AddListener(GoToMainMenu);
+        // ── Estadísticas ──
+        float statsY = -215f;
+        float rowH = 40f;
 
-        // Hint de tecla
-        GameObject hintGO = CreateTMPro(panel.transform, "Hint",
-            "Presiona R para reintentar",
-            new Color(1f, 1f, 1f, 0.4f), 20, FontStyles.Italic);
-        RectTransform hr = hintGO.GetComponent<RectTransform>();
-        hr.anchorMin = hr.anchorMax = hr.pivot = new Vector2(0.5f, 0f);
-        hr.sizeDelta = new Vector2(620, 30);
-        hr.anchoredPosition = new Vector2(0, 20);
+        // Fila: Puntos
+        CreateStatRow(container.transform, "⭐  PUNTOS", "StatsPoints", "0",
+            new Color(1f, 0.85f, 0.2f, 1f), statsY);
+        statsY -= rowH;
 
-        // Listener de tecla R en el overlay
-        overlay.AddComponent<RestartOnKeyBehaviour>().screen = this;
+        // Fila: Oleada
+        CreateStatRow(container.transform, "🌊  OLEADA ALCANZADA", "StatsWave", "0",
+            new Color(0.4f, 0.8f, 1f, 1f), statsY);
+        statsY -= rowH;
+
+        // Fila: Tiempo
+        CreateStatRow(container.transform, "⏱  TIEMPO SOBREVIVIDO", "StatsTime", "00:00",
+            new Color(0.6f, 0.9f, 0.6f, 1f), statsY);
+
+        // ── Botones ──
+        CreateStyledButton(container.transform, "BtnMenu", "MENÚ PRINCIPAL",
+            new Color(0.25f, 0.25f, 0.3f, 1f), new Color(0.35f, 0.35f, 0.4f, 1f),
+            new Vector2(0.5f, 0f), new Vector2(320, 55), new Vector2(0, 80),
+            GoToMainMenu);
+
+        // ── Línea inferior decorativa ──
+        GameObject botLine = CreatePanel(container.transform, "BotLine");
+        Image botLineImg = botLine.AddComponent<Image>();
+        botLineImg.color = new Color(0.8f, 0.15f, 0.15f, 1f);
+        RectTransform blr = botLine.GetComponent<RectTransform>();
+        blr.anchorMin = new Vector2(0.1f, 0f);
+        blr.anchorMax = new Vector2(0.9f, 0f);
+        blr.pivot = new Vector2(0.5f, 0f);
+        blr.sizeDelta = new Vector2(0, 4);
+        blr.anchoredPosition = Vector2.zero;
 
         return overlay;
     }
 
-    // ── Helpers de creación ─────────────────────────────────────
-    GameObject CreateImage(Transform parent, string name, Color color,
-                           Vector2 pos, Vector2 size)
+    // ────────────────────────────────────────────────────
+    //  PANTALLA DE VICTORIA
+    // ────────────────────────────────────────────────────
+    GameObject BuildVictoryPanel(Transform parent)
+    {
+        // Overlay oscuro
+        GameObject overlay = CreatePanel(parent, "VictoryOverlay");
+        Image overlayImg = overlay.AddComponent<Image>();
+        overlayImg.color = new Color(0f, 0f, 0f, 0.85f);
+        SetFullStretch(overlay.GetComponent<RectTransform>());
+
+        // Contenedor central
+        GameObject container = CreatePanel(overlay.transform, "Container");
+        RectTransform crt = container.GetComponent<RectTransform>();
+        crt.anchorMin = crt.anchorMax = crt.pivot = new Vector2(0.5f, 0.5f);
+        crt.sizeDelta = new Vector2(680, 520);
+
+        // ── Línea superior dorada ──
+        GameObject topLine = CreatePanel(container.transform, "TopLine");
+        Image topLineImg = topLine.AddComponent<Image>();
+        topLineImg.color = new Color(1f, 0.85f, 0.2f, 1f);
+        RectTransform tlr = topLine.GetComponent<RectTransform>();
+        tlr.anchorMin = new Vector2(0.1f, 1f);
+        tlr.anchorMax = new Vector2(0.9f, 1f);
+        tlr.pivot = new Vector2(0.5f, 1f);
+        tlr.sizeDelta = new Vector2(0, 4);
+        tlr.anchoredPosition = Vector2.zero;
+
+        // ── Icono trofeo ──
+        CreateTMP(container.transform, "Trophy", "🏆",
+            new Color(1f, 0.85f, 0.2f, 1f), 64, FontStyles.Normal,
+            new Vector2(0.5f, 1f), new Vector2(100, 80), new Vector2(0, -15));
+
+        // ── Título ──
+        CreateTMP(container.transform, "Title", "¡VICTORIA!",
+            new Color(1f, 0.85f, 0.2f, 1f), 58, FontStyles.Bold,
+            new Vector2(0.5f, 1f), new Vector2(600, 70), new Vector2(0, -85));
+
+        // ── Subtítulo ──
+        CreateTMP(container.transform, "Subtitle", "Has sobrevivido y salvado el mundo",
+            new Color(0.75f, 0.9f, 0.75f, 1f), 22, FontStyles.Italic,
+            new Vector2(0.5f, 1f), new Vector2(600, 35), new Vector2(0, -155));
+
+        // ── Separador ──
+        GameObject sepLine = CreatePanel(container.transform, "SepLine");
+        Image sepImg = sepLine.AddComponent<Image>();
+        sepImg.color = new Color(1f, 1f, 1f, 0.15f);
+        RectTransform slr = sepLine.GetComponent<RectTransform>();
+        slr.anchorMin = slr.anchorMax = slr.pivot = new Vector2(0.5f, 1f);
+        slr.sizeDelta = new Vector2(500, 1);
+        slr.anchoredPosition = new Vector2(0, -195);
+
+        // ── Estadísticas ──
+        float statsY = -215f;
+        float rowH = 40f;
+
+        CreateStatRow(container.transform, "⭐  PUNTOS", "StatsPoints", "0",
+            new Color(1f, 0.85f, 0.2f, 1f), statsY);
+        statsY -= rowH;
+
+        CreateStatRow(container.transform, "🌊  OLEADAS COMPLETADAS", "StatsWave", "0",
+            new Color(0.4f, 0.8f, 1f, 1f), statsY);
+        statsY -= rowH;
+
+        CreateStatRow(container.transform, "⏱  TIEMPO TOTAL", "StatsTime", "00:00",
+            new Color(0.6f, 0.9f, 0.6f, 1f), statsY);
+
+        // ── Botones ──
+        CreateStyledButton(container.transform, "BtnMenu", "MENÚ PRINCIPAL",
+            new Color(0.25f, 0.25f, 0.3f, 1f), new Color(0.35f, 0.35f, 0.4f, 1f),
+            new Vector2(0.5f, 0f), new Vector2(320, 55), new Vector2(0, 80),
+            GoToMainMenu);
+
+        // ── Línea inferior dorada ──
+        GameObject botLine = CreatePanel(container.transform, "BotLine");
+        Image botLineImg = botLine.AddComponent<Image>();
+        botLineImg.color = new Color(1f, 0.85f, 0.2f, 1f);
+        RectTransform blr = botLine.GetComponent<RectTransform>();
+        blr.anchorMin = new Vector2(0.1f, 0f);
+        blr.anchorMax = new Vector2(0.9f, 0f);
+        blr.pivot = new Vector2(0.5f, 0f);
+        blr.sizeDelta = new Vector2(0, 4);
+        blr.anchoredPosition = Vector2.zero;
+
+        return overlay;
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  HELPERS
+    // ══════════════════════════════════════════════════════════
+
+    GameObject CreatePanel(Transform parent, string name)
     {
         GameObject go = new GameObject(name);
         go.transform.SetParent(parent, false);
-        Image img = go.AddComponent<Image>();
-        img.color = color;
-        RectTransform rt = go.GetComponent<RectTransform>();
-        rt.sizeDelta = size;
-        rt.anchoredPosition = pos;
+        go.AddComponent<RectTransform>();
         return go;
     }
 
-    GameObject CreateTMPro(Transform parent, string name, string text,
-                           Color color, int fontSize, FontStyles style)
+    TextMeshProUGUI CreateTMP(Transform parent, string name, string text,
+        Color color, float fontSize, FontStyles style,
+        Vector2 anchor, Vector2 size, Vector2 pos)
     {
         GameObject go = new GameObject(name);
         go.transform.SetParent(parent, false);
         TextMeshProUGUI tmp = go.AddComponent<TextMeshProUGUI>();
-        tmp.text      = text;
-        tmp.color     = color;
-        tmp.fontSize  = fontSize;
+        tmp.text = text;
+        tmp.color = color;
+        tmp.fontSize = fontSize;
         tmp.fontStyle = style;
         tmp.alignment = TextAlignmentOptions.Center;
-        return go;
+        tmp.enableWordWrapping = true;
+        tmp.overflowMode = TextOverflowModes.Ellipsis;
+
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = anchor;
+        rt.sizeDelta = size;
+        rt.anchoredPosition = pos;
+
+        return tmp;
     }
 
-    GameObject CreateButton(Transform parent, string name, string label,
-                            Vector2 pos, Vector2 size)
+    void CreateStatRow(Transform parent, string label, string valueName, string defaultValue,
+        Color valueColor, float yPos)
+    {
+        // Label (izquierda)
+        GameObject labelGO = new GameObject("Label_" + valueName);
+        labelGO.transform.SetParent(parent, false);
+        TextMeshProUGUI labelTmp = labelGO.AddComponent<TextMeshProUGUI>();
+        labelTmp.text = label;
+        labelTmp.color = new Color(0.8f, 0.8f, 0.8f, 0.9f);
+        labelTmp.fontSize = 22;
+        labelTmp.fontStyle = FontStyles.Normal;
+        labelTmp.alignment = TextAlignmentOptions.Left;
+
+        RectTransform lr = labelGO.GetComponent<RectTransform>();
+        lr.anchorMin = lr.anchorMax = lr.pivot = new Vector2(0.5f, 1f);
+        lr.sizeDelta = new Vector2(460, 35);
+        lr.anchoredPosition = new Vector2(-40f, yPos);
+
+        // Value (derecha)
+        GameObject valueGO = new GameObject(valueName);
+        valueGO.transform.SetParent(parent, false);
+        TextMeshProUGUI valueTmp = valueGO.AddComponent<TextMeshProUGUI>();
+        valueTmp.text = defaultValue;
+        valueTmp.color = valueColor;
+        valueTmp.fontSize = 26;
+        valueTmp.fontStyle = FontStyles.Bold;
+        valueTmp.alignment = TextAlignmentOptions.Right;
+
+        RectTransform vr = valueGO.GetComponent<RectTransform>();
+        vr.anchorMin = vr.anchorMax = vr.pivot = new Vector2(0.5f, 1f);
+        vr.sizeDelta = new Vector2(460, 35);
+        vr.anchoredPosition = new Vector2(40f, yPos);
+    }
+
+    void CreateStyledButton(Transform parent, string name, string label,
+        Color normalColor, Color hoverColor,
+        Vector2 anchor, Vector2 size, Vector2 pos,
+        UnityEngine.Events.UnityAction onClick)
     {
         GameObject go = new GameObject(name);
         go.transform.SetParent(parent, false);
-        Image img    = go.AddComponent<Image>();
-        img.color    = buttonColor;
-        Button btn   = go.AddComponent<Button>();
 
+        Image img = go.AddComponent<Image>();
+        img.color = normalColor;
+
+        Button btn = go.AddComponent<Button>();
         ColorBlock cb = btn.colors;
-        cb.normalColor      = buttonColor;
-        cb.highlightedColor = buttonHoverColor;
-        cb.pressedColor     = new Color(0.4f, 0.4f, 0.4f, 1f);
-        btn.colors          = cb;
+        cb.normalColor = normalColor;
+        cb.highlightedColor = hoverColor;
+        cb.pressedColor = new Color(hoverColor.r + 0.1f, hoverColor.g + 0.1f, hoverColor.b + 0.1f, 1f);
+        cb.selectedColor = normalColor;
+        cb.fadeDuration = 0.1f;
+        btn.colors = cb;
 
-        RectTransform rt  = go.GetComponent<RectTransform>();
-        rt.anchorMin = rt.anchorMax = rt.pivot = new Vector2(0.5f, 1f);
-        rt.sizeDelta      = size;
+        RectTransform rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = rt.pivot = anchor;
+        rt.sizeDelta = size;
         rt.anchoredPosition = pos;
+
+        btn.onClick.AddListener(onClick);
 
         // Texto del botón
         GameObject textGO = new GameObject("Label");
         textGO.transform.SetParent(go.transform, false);
         TextMeshProUGUI tmp = textGO.AddComponent<TextMeshProUGUI>();
-        tmp.text      = label;
-        tmp.color     = buttonTextColor;
-        tmp.fontSize  = 26;
+        tmp.text = label;
+        tmp.color = Color.white;
+        tmp.fontSize = 24;
         tmp.fontStyle = FontStyles.Bold;
         tmp.alignment = TextAlignmentOptions.Center;
         RectTransform tr = textGO.GetComponent<RectTransform>();
         tr.anchorMin = Vector2.zero;
         tr.anchorMax = Vector2.one;
         tr.offsetMin = tr.offsetMax = Vector2.zero;
-
-        return go;
     }
 
     void SetFullStretch(RectTransform rt)
     {
-        rt.anchorMin        = Vector2.zero;
-        rt.anchorMax        = Vector2.one;
-        rt.offsetMin        = Vector2.zero;
-        rt.offsetMax        = Vector2.zero;
-        rt.pivot            = new Vector2(0.5f, 0.5f);
-    }
-}
-
-// ── Componente auxiliar para capturar la tecla R ────────────────
-public class RestartOnKeyBehaviour : MonoBehaviour
-{
-    public GameResultScreen screen;
-    void Update()
-    {
-        if (Input.GetKeyDown(KeyCode.R) && gameObject.activeSelf)
-        {
-            screen?.Restart_Internal();
-        }
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        rt.pivot = new Vector2(0.5f, 0.5f);
     }
 }

@@ -85,6 +85,9 @@ public class BoatInteraction : MonoBehaviour
     {
         if (boatController == null) return;
         
+        // No mostrar nada si el juego terminó (victoria/derrota)
+        if (GameResultScreen.IsGameOver) return;
+        
         // Inicializar estilos si es necesario
         if (promptStyle == null)
         {
@@ -102,9 +105,7 @@ public class BoatInteraction : MonoBehaviour
         
         if (boatController.IsBeingDriven())
         {
-            // Mostrar mensaje de salida y velocidad
-            float speed = boatController.GetCurrentSpeed();
-            texto = exitMessage + "\n" + "Velocidad: " + Mathf.Abs(speed).ToString("F1") + " km/h";
+            texto = exitMessage;
         }
         else if (playerInRange)
         {

@@ -165,6 +165,7 @@ public class FPSMeleeWeapon : MonoBehaviour
     void Update()
     {
         if (isHolstering || isDrawing) return;
+        if (GameResultScreen.IsGameOver) return;
         
         HandleInput();
         ApplyBobbing();

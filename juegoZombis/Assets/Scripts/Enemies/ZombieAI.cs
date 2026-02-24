@@ -80,6 +80,7 @@ public class ZombieAI : MonoBehaviour
     private NavMeshAgent agent;
     private EnemyHealth enemyHealth;
     private AudioSource audioSource;
+    private AudioSource idleAudioSource; // AudioSource dedicado al sonido idle en loop
     
     // Estado
     private Transform playerTransform;
@@ -123,15 +124,45 @@ public class ZombieAI : MonoBehaviour
         }
         
         // Configuración de audio 3D mejorada
-        audioSource.spatialBlend = 0.8f; // Mayormente 3D pero con algo de 2D para que se escuche mejor
+        audioSource.spatialBlend = 1f; // 100% 3D para que suene según la distancia
         audioSource.maxDistance = maxSoundDistance;
-        audioSource.minDistance = 1f; // Volumen máximo dentro de 1 metro
+        audioSource.minDistance = 2f; // Volumen máximo dentro de 2 metros
         audioSource.rolloffMode = AudioRolloffMode.Linear;
         audioSource.volume = 1f; // Volumen base máximo
-        audioSource.priority = 50; // Prioridad media-alta
+        audioSource.priority = 20; // Prioridad ALTA (0 = máxima, 256 = mínima) para que no sea silenciado por música ambiente
         audioSource.playOnAwake = false; // No reproducir al inicio
         audioSource.dopplerLevel = 0f; // Sin efecto doppler
-        audioSource.spread = 180f; // Sonido más amplio
+        audioSource.spread = 60f; // Sonido direccional pero no demasiado estrecho
+        audioSource.bypassEffects = true; // Evitar que efectos de audio lo silencien
+        audioSource.bypassListenerEffects = true; // Evitar filtros del listener
+        
+        // === AudioSource DEDICADO para idle en LOOP ===
+        idleAudioSource = gameObject.AddComponent<AudioSource>();
+        idleAudioSource.spatialBlend = 1f; // 100% 3D para atenuación por distancia correcta
+        idleAudioSource.maxDistance = maxSoundDistance;
+        idleAudioSource.minDistance = 2f; // A 2m se oye al máximo, luego baja linealmente
+        idleAudioSource.rolloffMode = AudioRolloffMode.Linear;
+        idleAudioSource.volume = soundVolume;
+        idleAudioSource.priority = 20;
+        idleAudioSource.playOnAwake = false;
+        idleAudioSource.dopplerLevel = 0f;
+        idleAudioSource.spread = 60f; // Direccional para que se oiga de dónde viene
+        idleAudioSource.bypassEffects = true;
+        idleAudioSource.bypassListenerEffects = true;
+        idleAudioSource.loop = true; // ¡EN LOOP SIEMPRE!
+        
+        // Iniciar el sonido idle en loop si hay clips asignados
+        if (idleSounds != null && idleSounds.Length > 0)
+        {
+            AudioClip idleClip = idleSounds[Random.Range(0, idleSounds.Length)];
+            if (idleClip != null)
+            {
+                idleAudioSource.clip = idleClip;
+                idleAudioSource.time = Random.Range(0f, idleClip.length); // Offset aleatorio para que no suenen todos igual
+                idleAudioSource.Play();
+                Debug.Log($"[ZombieAI] {gameObject.name}: 🔊 Idle en LOOP iniciado: '{idleClip.name}'");
+            }
+        }
         
         // Verificar que hay sonidos asignados
         int totalSounds = CountValidClips(idleSounds) + CountValidClips(chaseSounds) + 
@@ -582,6 +613,12 @@ public class ZombieAI : MonoBehaviour
         }
         PlayRandomSound(deathSounds);
         
+        // Parar el sonido idle en loop al morir
+        if (idleAudioSource != null && idleAudioSource.isPlaying)
+        {
+            idleAudioSource.Stop();
+        }
+        
         // Desactivar NavMeshAgent para que el cuerpo caiga al suelo
         // y no se quede flotando en la posición del NavMesh
         if (agent != null)
@@ -712,33 +749,24 @@ public class ZombieAI : MonoBehaviour
     }
     
     /// <summary>
-    /// Actualizar sonidos de ambiente (gruñidos periódicos) - MENOS FRECUENTES
+    /// Actualizar sonidos de ambiente - El idle suena SIEMPRE en loop (AudioSource separado).
+    /// Aquí solo se gestionan los sonidos de persecución ocasionales.
     /// </summary>
     void UpdateAmbientSounds()
     {
         if (Time.time < nextGroanTime) return;
         if (audioSource != null && audioSource.isPlaying) return;
         
-        // Probabilidad de NO hacer ruido
-        if (Random.value > groanChance)
-        {
-            // Programar próximo intento y salir sin hacer ruido
-            float variation = Random.Range(-groanIntervalVariation, groanIntervalVariation);
-            nextGroanTime = Time.time + groanInterval + variation;
-            return;
-        }
-        
-        // Solo reproducir sonidos de persecución ocasionalmente
+        // Solo reproducir sonidos de persecución ocasionalmente cuando persigue
         if (isChasing && CountValidClips(chaseSounds) > 0)
         {
-            PlayRandomSound(chaseSounds, 0.6f); // Volumen más bajo
-        }
-        else if (CountValidClips(idleSounds) > 0)
-        {
-            PlayRandomSound(idleSounds, 0.5f); // Volumen más bajo
+            if (Random.value < groanChance)
+            {
+                PlayRandomSound(chaseSounds, 0.6f);
+            }
         }
         
-        // Programar próximo gruñido con más tiempo
+        // Programar próximo intento
         float nextVariation = Random.Range(-groanIntervalVariation, groanIntervalVariation);
         nextGroanTime = Time.time + groanInterval + nextVariation;
     }

@@ -180,8 +180,9 @@ public class FPSWeaponController : MonoBehaviour
     
     void Update()
     {
-        // No hacer nada si el juego está pausado
+        // No hacer nada si el juego está pausado o en pantalla de resultado
         if (PauseManager.IsPaused) return;
+        if (GameResultScreen.IsGameOver) return;
         
         // Aplicar retroceso visual
         ApplyRecoil();

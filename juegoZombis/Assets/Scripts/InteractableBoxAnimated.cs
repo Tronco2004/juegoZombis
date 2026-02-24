@@ -66,8 +66,11 @@ public class InteractableBoxAnimated : MonoBehaviour
         {
             audioSource = gameObject.AddComponent<AudioSource>();
         }
-        audioSource.spatialBlend = 1f;
+        audioSource.spatialBlend = 0.3f; // Más 2D para que se escuche bien de cerca
         audioSource.playOnAwake = false;
+        audioSource.volume = 1f;
+        audioSource.minDistance = 2f;
+        audioSource.maxDistance = 15f;
 
         // Verificar que tiene un Trigger Collider
         Collider col = GetComponent<Collider>();
@@ -150,7 +153,33 @@ public class InteractableBoxAnimated : MonoBehaviour
             // Dar item
             if (boxType == BoxType.Ammo)
             {
-                Debug.Log("[InteractableBox] +" + ammoAmount + " munición");
+                // Buscar el WeaponSwitcher del jugador para dar munición a TODAS las armas
+                WeaponSwitcher switcher = FindObjectOfType<WeaponSwitcher>();
+                if (switcher != null && switcher.weapons != null)
+                {
+                    foreach (FPSWeaponController weapon in switcher.weapons)
+                    {
+                        if (weapon != null)
+                        {
+                            weapon.AddAmmo(ammoAmount);
+                        }
+                    }
+                    Debug.Log("[InteractableBox] +" + ammoAmount + " munición a todas las armas");
+                }
+                else
+                {
+                    // Fallback: buscar el arma activa directamente
+                    FPSWeaponController activeWeapon = FindObjectOfType<FPSWeaponController>();
+                    if (activeWeapon != null)
+                    {
+                        activeWeapon.AddAmmo(ammoAmount);
+                        Debug.Log("[InteractableBox] +" + ammoAmount + " munición al arma activa");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("[InteractableBox] No se encontró ningún arma para dar munición");
+                    }
+                }
             }
             else
             {
@@ -164,7 +193,7 @@ public class InteractableBoxAnimated : MonoBehaviour
             }
 
             // Sonido
-            if (buySound != null) audioSource.PlayOneShot(buySound);
+            if (buySound != null) audioSource.PlayOneShot(buySound, 1f);
 
             // ANIMACIÓN DE APERTURA (y luego cierre automático)
             if (boxLid != null)
@@ -179,7 +208,7 @@ public class InteractableBoxAnimated : MonoBehaviour
         else
         {
             Debug.Log("[InteractableBox] No tienes suficiente dinero. Necesitas $" + price);
-            if (noMoneySound != null) audioSource.PlayOneShot(noMoneySound);
+            if (noMoneySound != null) audioSource.PlayOneShot(noMoneySound, 1f);
 
             // Pequeño shake para indicar que no se puede
             StartCoroutine(ShakeAnimation());

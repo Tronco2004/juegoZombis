@@ -29,10 +29,28 @@ public class BoatController : MonoBehaviour
     [Header("=== EFECTOS (Opcional) ===")]
     [Tooltip("Partículas de agua/estela")]
     public ParticleSystem wakeEffect;
-    [Tooltip("Sonido del motor")]
+    [Tooltip("Sonido del motor (loop)")]
     public AudioClip engineSound;
-    [Tooltip("Sonido al arrancar")]
+    [Tooltip("Sonido al arrancar (one-shot)")]
     public AudioClip startSound;
+    [Tooltip("Volumen del motor en ralentí (montado pero parado)")]
+    [Range(0f, 1f)]
+    public float engineIdleVolume = 0.5f;
+    [Tooltip("Volumen máximo del motor a máxima velocidad")]
+    [Range(0f, 1f)]
+    public float engineMaxVolume = 1f;
+    
+    [Header("=== SONIDO DE NAVEGACIÓN (Agua) ===")]
+    [Tooltip("Sonido de agua mientras navega (loop)")]
+    public AudioClip waterSound;
+    [Tooltip("Volumen máximo del sonido de agua")]
+    [Range(0f, 1f)]
+    public float waterSoundMaxVolume = 0.6f;
+    [Tooltip("Velocidad mínima para que suene el agua (en proporción a maxSpeed)")]
+    [Range(0f, 1f)]
+    public float waterSoundSpeedThreshold = 0.05f;
+    [Tooltip("Velocidad de fade in/out del sonido de agua")]
+    public float waterSoundFadeSpeed = 3f;
     
     [Header("=== FÍSICA DEL AGUA ===")]
     [Tooltip("Simular flotación (subir/bajar suavemente)")]
@@ -77,6 +95,7 @@ public class BoatController : MonoBehaviour
     
     // Audio
     private AudioSource audioSource;
+    private AudioSource waterAudioSource;
     private bool engineRunning = false;
     
     // Referencia al script de interacción
@@ -94,6 +113,17 @@ public class BoatController : MonoBehaviour
             audioSource.loop = true;
             audioSource.playOnAwake = false;
             audioSource.spatialBlend = 1f;
+        }
+        
+        // Crear AudioSource para sonido de agua de navegación
+        waterAudioSource = gameObject.AddComponent<AudioSource>();
+        waterAudioSource.loop = true;
+        waterAudioSource.playOnAwake = false;
+        waterAudioSource.spatialBlend = 1f;
+        waterAudioSource.volume = 0f;
+        if (waterSound != null)
+        {
+            waterAudioSource.clip = waterSound;
         }
         
         // Buscar script de interacción
@@ -298,10 +328,45 @@ public class BoatController : MonoBehaviour
                 wakeEffect.Stop();
         }
         
-        // Sonido del motor
-        if (engineSound != null && audioSource != null)
+        // Sonido del motor - volumen y pitch según velocidad
+        if (engineSound != null && audioSource != null && engineRunning)
         {
-            audioSource.pitch = 0.8f + (Mathf.Abs(currentSpeed) / maxSpeed) * 0.4f;
+            float speedRatio = Mathf.Abs(currentSpeed) / maxSpeed;
+            audioSource.volume = Mathf.Lerp(engineIdleVolume, engineMaxVolume, speedRatio);
+            audioSource.pitch = 0.7f + speedRatio * 0.5f;
+        }
+        
+        // Sonido de agua de navegación
+        if (waterSound != null && waterAudioSource != null)
+        {
+            float speedRatio = Mathf.Abs(currentSpeed) / maxSpeed;
+            
+            if (speedRatio > waterSoundSpeedThreshold)
+            {
+                // Iniciar reproducción si no está sonando
+                if (!waterAudioSource.isPlaying)
+                {
+                    waterAudioSource.Play();
+                }
+                
+                // Fade in proporcional a la velocidad
+                float targetVolume = Mathf.Lerp(0.1f, waterSoundMaxVolume, speedRatio);
+                waterAudioSource.volume = Mathf.MoveTowards(waterAudioSource.volume, targetVolume, waterSoundFadeSpeed * Time.deltaTime);
+                
+                // Pitch ligeramente variable según velocidad
+                waterAudioSource.pitch = 0.9f + speedRatio * 0.3f;
+            }
+            else
+            {
+                // Fade out cuando el barco está parado o muy lento
+                waterAudioSource.volume = Mathf.MoveTowards(waterAudioSource.volume, 0f, waterSoundFadeSpeed * Time.deltaTime);
+                
+                if (waterAudioSource.volume <= 0.01f && waterAudioSource.isPlaying)
+                {
+                    waterAudioSource.Stop();
+                    waterAudioSource.volume = 0f;
+                }
+            }
         }
     }
     
@@ -412,6 +477,7 @@ public class BoatController : MonoBehaviour
         if (engineSound != null && audioSource != null)
         {
             audioSource.clip = engineSound;
+            audioSource.volume = engineIdleVolume;
             audioSource.Play();
             engineRunning = true;
         }
@@ -476,6 +542,13 @@ public class BoatController : MonoBehaviour
         {
             audioSource.Stop();
             engineRunning = false;
+        }
+        
+        // Parar sonido de agua de navegación
+        if (waterAudioSource != null && waterAudioSource.isPlaying)
+        {
+            waterAudioSource.Stop();
+            waterAudioSource.volume = 0f;
         }
         
         // Limpiar override al siguiente frame (Camera.main ya estará disponible)
