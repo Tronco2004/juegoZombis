@@ -62,6 +62,12 @@ public class ZombieAI : MonoBehaviour
     [Tooltip("Rango de ataque reducido al arrastrarse")]
     public float crawlAttackRange = 1.5f;
 
+    [Header("Ralentización por disparo (solo zombis normales)")]
+    [Tooltip("Velocidad lenta tras recibir un disparo (caminar)")]
+    public float shotSlowSpeed = 2f;
+    [Tooltip("Duración de la ralentización en segundos")]
+    public float shotSlowDuration = 2f;
+
     [Header("=== SISTEMA MANSION (Alerta Progresiva) ===")]
     [Tooltip("¿Este zombi es de la mansion? Si es true, entra en modo 3 estados")]
     public bool isMansionZombie = false;
@@ -89,6 +95,7 @@ public class ZombieAI : MonoBehaviour
     private bool isChasing = false; // Intent de perseguir (para animaciones)
     private float nextGroanTime;
     private bool wasChasing = false;
+    private float shotSlowTimer = 0f; // Tiempo restante de ralentización por disparo
     private AiState currentState = AiState.Dormido; // Estado actual (solo para mansion)
     private float patrolTimer = 0f; // Para cambiar destino de patrulla
     private Vector3 patrolDestination; // Destino actual de patrulla
@@ -184,6 +191,21 @@ public class ZombieAI : MonoBehaviour
             }
             StopMovement();
             return;
+        }
+
+        // Temporizador de ralentización por disparo (solo zombis normales)
+        if (!isMansionZombie && shotSlowTimer > 0f)
+        {
+            shotSlowTimer -= Time.deltaTime;
+            if (shotSlowTimer <= 0f)
+            {
+                shotSlowTimer = 0f;
+                // Restaurar velocidad (si no está en crawl)
+                if (agent != null && agent.isOnNavMesh && animController != null && !animController.IsCrawling)
+                {
+                    agent.speed = originalSpeed;
+                }
+            }
         }
         
         // Si no tenemos jugador, intentar buscarlo
@@ -580,7 +602,12 @@ public class ZombieAI : MonoBehaviour
         // Ajustar velocidad según estado
         if (agent != null)
         {
-            agent.speed = (animController.IsCrawling) ? crawlSpeed : originalSpeed;
+            if (animController.IsCrawling)
+                agent.speed = crawlSpeed;
+            else if (shotSlowTimer > 0f)
+                agent.speed = shotSlowSpeed; // Mantener lento si está ralentizado
+            else
+                agent.speed = originalSpeed;
         }
     }
     
@@ -731,6 +758,16 @@ public class ZombieAI : MonoBehaviour
         if (animController != null)
         {
             animController.PlayHitReaction();
+        }
+
+        // Ralentizar al recibir disparo (solo zombis normales, no mansión)
+        if (!isMansionZombie && !isDead)
+        {
+            shotSlowTimer = shotSlowDuration;
+            if (agent != null && agent.isOnNavMesh && !animController.IsCrawling)
+            {
+                agent.speed = shotSlowSpeed;
+            }
         }
     }
     

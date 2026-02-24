@@ -1109,15 +1109,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.x
-      value: 428.95
+      value: 450.7
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 4.27
+      value: 5.73
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalPosition.z
-      value: 421.7
+      value: 50.53
       objectReference: {fileID: 0}
     - target: {fileID: 193812900219098768, guid: 07fde82d6ef77b348a9d22a225f139d2, type: 3}
       propertyPath: m_LocalRotation.w
@@ -22726,7 +22726,7 @@ MeshCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 5
   m_Convex: 0
   m_CookingOptions: 30
@@ -34041,7 +34041,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc6b367e678aa7e4ba6d579686a0d70b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  zone: 4
+  zone: 6
   playerTag: Player
   gizmoColor: {r: 0, g: 0, b: 0, a: 0}
 --- !u!65 &846644712
@@ -39215,6 +39215,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   currentMoney: 500
   moneyText: {fileID: 0}
+  menuSceneName: SampleScene
 --- !u!65 &957334227
 BoxCollider:
   m_ObjectHideFlags: 0

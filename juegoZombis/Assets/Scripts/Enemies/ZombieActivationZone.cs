@@ -64,10 +64,34 @@ public class ZombieActivationZone : MonoBehaviour
     {
         if (!other.CompareTag(playerTag)) return;
 
+        // ── Zona 3: funciona como TOGGLE (puerta de entrada/salida) ──
+        if (zone == SpawnZone.Zona3_Infinitos)
+        {
+            bool currentlyInZone3 = ZombieSpawner.Instance != null &&
+                                    ZombieSpawner.Instance.CurrentPlayerZone == SpawnZone.Zona3_Infinitos;
+
+            if (!currentlyInZone3)
+            {
+                // ENTRAR en Zona 3
+                ZombieActivationZone[] allZones = FindObjectsOfType<ZombieActivationZone>();
+                foreach (var z in allZones)
+                    if (z != this) z.ForceDeactivate();
+
+                SetPointsActive(true);
+                Debug.Log($"[ZombieActivationZone] TOGGLE Zona 3 → ACTIVADA");
+
+                if (ZombieSpawner.Instance != null)
+                    ZombieSpawner.Instance.NotifyZoneEntered(zone);
+            }
+            // Si ya está en Zona 3, no hacemos nada al entrar al trigger.
+            // Solo se sale al volver a cruzar (OnTriggerExit).
+            return;
+        }
+
+        // ── Zonas normales: comportamiento clásico ──
         // Desactivar TODAS las demás zonas antes de activar esta
-        // → no hace falta ningún trigger de desactivación separado
-        ZombieActivationZone[] allZones = FindObjectsOfType<ZombieActivationZone>();
-        foreach (var z in allZones)
+        ZombieActivationZone[] allOtherZones = FindObjectsOfType<ZombieActivationZone>();
+        foreach (var z in allOtherZones)
         {
             if (z != this) z.ForceDeactivate();
         }
@@ -83,10 +107,26 @@ public class ZombieActivationZone : MonoBehaviour
     {
         if (!other.CompareTag(playerTag)) return;
 
-        // NO desactivamos los puntos aquí.
-        // Los puntos se desactivan únicamente cuando el jugador ENTRA en otra zona
-        // (OnTriggerEnter llama ForceDeactivate sobre todas las demás zonas).
-        // Así los spawns siguen activos aunque el jugador esté entre dos zonas.
+        // ── Zona 3: TOGGLE — al salir del trigger siendo zona 3 activa → desactivar ──
+        if (zone == SpawnZone.Zona3_Infinitos)
+        {
+            bool currentlyInZone3 = ZombieSpawner.Instance != null &&
+                                    ZombieSpawner.Instance.CurrentPlayerZone == SpawnZone.Zona3_Infinitos;
+
+            if (currentlyInZone3)
+            {
+                // El jugador cruza la puerta de vuelta → SALIR de Zona 3
+                SetPointsActive(false);
+                Debug.Log($"[ZombieActivationZone] TOGGLE Zona 3 → DESACTIVADA (jugador salió por la puerta)");
+
+                if (ZombieSpawner.Instance != null)
+                    ZombieSpawner.Instance.NotifyZoneExited(zone);
+            }
+            return;
+        }
+
+        // ── Zonas normales: no desactivar al salir ──
+        // Los puntos se desactivan únicamente cuando el jugador ENTRA en otra zona.
         Debug.Log($"[ZombieActivationZone] Jugador SALIÓ de {zone} (spawns siguen activos hasta entrar en otra zona).");
 
         if (ZombieSpawner.Instance != null)

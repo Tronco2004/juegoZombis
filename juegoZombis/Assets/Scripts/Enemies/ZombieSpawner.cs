@@ -47,8 +47,8 @@ public class ZombieSpawner : MonoBehaviour
     [Header("Zona 3 — Oleadas con Zombi Especial")]
     [Tooltip("Máximo de zombis vivos a la vez en Zona 3")]
     public int zone3MaxZombies = 30;
-    [Tooltip("Cuando queden este nº de zombis, se rellena hasta el máximo")]
-    public int zone3RefillThreshold = 15;
+    [Tooltip("Cuando queden este nº de zombis, se rellena hasta el máximo (30-17=13)")]
+    public int zone3RefillThreshold = 13;
     [Tooltip("Cada cuántos rellenos aparece el zombi especial")]
     public int zone3CyclesForSpecial = 3;
     [Tooltip("Tiempo entre spawns individuales en Zona 3")]
@@ -186,6 +186,7 @@ public class ZombieSpawner : MonoBehaviour
             zone3RefillCount = 0;
             zone3SpecialAlive = false;
             infiniteSpawnCoroutine = StartCoroutine(Zone3WaveLoop());
+            UpdateWaveUI(); // Mostrar ∞ desde el inicio
             Debug.Log("[ZombieSpawner] Jugador empieza en Zona 3 — activando spawn infinito.");
         }
     }
@@ -310,6 +311,9 @@ public class ZombieSpawner : MonoBehaviour
                 infiniteSpawnCoroutine = null;
             }
             infiniteSpawnCoroutine = StartCoroutine(Zone3WaveLoop());
+
+            // Mostrar ∞ en la UI
+            UpdateWaveUI();
         }
         else if (!isInfinite && wasInfinite)
         {
@@ -321,6 +325,9 @@ public class ZombieSpawner : MonoBehaviour
                 infiniteSpawnCoroutine = null;
             }
             DestroyZone3Zombies();
+
+            // Restaurar número de oleada normal en la UI
+            UpdateWaveUI();
         }
 
         // Los zombis de oleada lejanos se reubicarán solos en el RelocateLoop
@@ -338,10 +345,14 @@ public class ZombieSpawner : MonoBehaviour
             while (playerInInfiniteZone)
                 yield return new WaitForSeconds(1f);
 
+            // Doble comprobación: si justo cambiaron a Zona 3, volver a esperar
+            if (playerInInfiniteZone) continue;
+
             // Esperar a que haya al menos un spawn point activo antes de iniciar la oleada
             bool hasActivePoints = false;
             while (!hasActivePoints)
             {
+                if (playerInInfiniteZone) break;
                 foreach (var p in spawnPoints)
                 {
                     if (p != null && p.isActive) { hasActivePoints = true; break; }
@@ -349,6 +360,7 @@ public class ZombieSpawner : MonoBehaviour
                 if (!hasActivePoints)
                     yield return new WaitForSeconds(1f);
             }
+            if (playerInInfiniteZone) continue;
 
             currentWave++;
             _waveSpawnIndex = 0;
@@ -934,6 +946,7 @@ public class ZombieSpawner : MonoBehaviour
     {
         Debug.Log("[ZombieSpawner] Entrando en Zona 3 — ELIMINANDO TODOS los zombis del mapa (excepto mansión).");
 
+        // 1. Eliminar los de la lista activeZombies
         for (int i = activeZombies.Count - 1; i >= 0; i--)
         {
             ZombieAI zombie = activeZombies[i];
@@ -945,6 +958,16 @@ public class ZombieSpawner : MonoBehaviour
             activeZombies.RemoveAt(i);
             Destroy(zombie.gameObject);
         }
+
+        // 2. Buscar CUALQUIER zombi suelto en la escena que no esté en activeZombies
+        ZombieAI[] allZombies = FindObjectsOfType<ZombieAI>();
+        foreach (var z in allZombies)
+        {
+            if (z == null) continue;
+            if (z.isMansionZombie) continue;
+            Destroy(z.gameObject);
+        }
+
         aliveZombiesWave = 0;
         aliveZombiesZone3 = 0;
         zone3SpecialAlive = false;
@@ -1110,7 +1133,11 @@ public class ZombieSpawner : MonoBehaviour
 
     void UpdateWaveUI()
     {
-        if (waveText != null)
+        if (waveText == null) return;
+
+        if (playerInInfiniteZone)
+            waveText.text = wavePrefix + "∞";
+        else
             waveText.text = wavePrefix + currentWave;
     }
 

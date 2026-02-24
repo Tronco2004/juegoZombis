@@ -223,11 +223,13 @@ public class BoatController : MonoBehaviour
         // Comprobar colisión con terreno antes de mover
         if (preventTerrainClipping && currentSpeed != 0f)
         {
-            Vector3 checkOrigin = transform.position + Vector3.up * 0.5f;
+            // Origen elevado: la esfera no debe tocar el fondo marino bajo el agua
+            float originHeight = boatRadius + 0.5f;
+            Vector3 checkOrigin = transform.position + Vector3.up * originHeight;
             Vector3 checkDir    = new Vector3(movement.x, 0f, movement.z).normalized;
             float   checkDist   = terrainCheckDistance + Mathf.Abs(currentSpeed) * Time.deltaTime;
 
-            if (Physics.SphereCast(checkOrigin, boatRadius, checkDir, out RaycastHit terrainHit,
+            if (checkDir.sqrMagnitude > 0.001f && Physics.SphereCast(checkOrigin, boatRadius, checkDir, out RaycastHit terrainHit,
                 checkDist, terrainLayers, QueryTriggerInteraction.Ignore))
             {
                 // Ignorar objetos con tag Water, Enemy, Player o triggers
@@ -240,10 +242,38 @@ public class BoatController : MonoBehaviour
 
                 if (!isWater && !isCharacter)
                 {
-                    // Frenar bruscamente
-                    currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, Mathf.Abs(currentSpeed) + 5f);
-                    movement     = Vector3.zero;
-                    Debug.Log($"[Barco] Colisión con tierra: {terrainHit.collider.gameObject.name}");
+                    // Si la distancia es ~0, el barco ya está solapando → permitir
+                    // movimiento para que pueda escapar
+                    if (terrainHit.distance < 0.01f)
+                    {
+                        // No bloquear → dejar que se mueva
+                        Debug.Log($"[Barco] Solapando con {terrainHit.collider.gameObject.name}, permitiendo escape");
+                    }
+                    else
+                    {
+                        // Intentar deslizar a lo largo de la costa
+                        Vector3 slide = Vector3.ProjectOnPlane(movement, terrainHit.normal);
+                        slide.y = 0f;
+
+                        bool slideBlocked = slide.sqrMagnitude > 0.001f &&
+                            Physics.SphereCast(checkOrigin, boatRadius, slide.normalized, out _,
+                                slide.magnitude + 0.1f, terrainLayers, QueryTriggerInteraction.Ignore);
+
+                        if (!slideBlocked && slide.sqrMagnitude > 0.001f)
+                        {
+                            movement.x = slide.x;
+                            movement.z = slide.z;
+                            currentSpeed *= 0.7f; // Reducir un poco al deslizar
+                        }
+                        else
+                        {
+                            // Frenar bruscamente
+                            currentSpeed = Mathf.MoveTowards(currentSpeed, 0f, Mathf.Abs(currentSpeed) + 5f);
+                            movement.x = 0f;
+                            movement.z = 0f;
+                        }
+                        Debug.Log($"[Barco] Colisión con tierra: {terrainHit.collider.gameObject.name}");
+                    }
                 }
             }
         }

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 
 public class PlayerMoney : MonoBehaviour
 {
@@ -10,6 +11,9 @@ public class PlayerMoney : MonoBehaviour
     
     [Header("UI (opcional)")]
     public Text moneyText; // Arrastra aquí un texto de UI para mostrar el dinero
+
+    [Header("Escena del menú (para auto-destruirse)")]
+    public string menuSceneName = "SampleScene";
     
     void Awake()
     {
@@ -21,6 +25,26 @@ public class PlayerMoney : MonoBehaviour
         }
         else
         {
+            Destroy(gameObject);
+            return;
+        }
+
+        // Suscribirse al cambio de escena para auto-destruirse en el menú
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    void OnDestroy()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        if (Instance == this) Instance = null;
+    }
+
+    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // Si volvemos al menú principal, destruir este objeto persistente
+        if (scene.name == menuSceneName)
+        {
+            Debug.Log("[PlayerMoney] Escena de menú detectada — destruyendo objeto persistente.");
             Destroy(gameObject);
         }
     }
