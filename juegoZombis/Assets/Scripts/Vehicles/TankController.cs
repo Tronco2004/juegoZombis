@@ -195,6 +195,9 @@ public class TankController : MonoBehaviour
         rb.mass = 2000f;
         rb.interpolation = RigidbodyInterpolation.None;
 
+        // Asegurar que el tanque tenga colliders para que el jugador no lo atraviese
+        EnsureTankColliders();
+
         // AudioSource para el motor
         audioSrc = GetComponent<AudioSource>();
         if (audioSrc == null)
@@ -381,7 +384,11 @@ public class TankController : MonoBehaviour
             foreach (var c in driverCols) c.enabled = false;
         }
 
-        Vector3 origin = transform.position + Vector3.up * Mathf.Max(collisionCheckHeight, tankCollisionRadius + 0.15f);
+        // Origen del SphereCast: dejamos margen sobre el suelo para que
+        // bordillos, rampas y desniveles del terreno no bloqueen al tanque.
+        float groundClearance = 1f;
+        float originHeight = tankCollisionRadius + groundClearance;
+        Vector3 origin = transform.position + Vector3.up * originHeight;
         Vector3 dir    = delta.normalized;
         float   dist   = delta.magnitude;
 
@@ -394,22 +401,31 @@ public class TankController : MonoBehaviour
 
         if (blocked)
         {
-            // Distancia segura hasta el impacto (sin penetrar)
-            float safeDistance = Mathf.Max(0f, hit.distance - 0.05f);
-
-            // Intento de deslizamiento a lo largo de la pared
-            Vector3 slide = Vector3.ProjectOnPlane(delta, hit.normal);
-            slide.y = 0f; // mantener solo movimiento horizontal
-
-            // Comprobar si el deslizamiento también está bloqueado
-            bool slideBlocked = Physics.SphereCast(
-                origin, tankCollisionRadius, slide.normalized, out _,
-                slide.magnitude, collisionMask, QueryTriggerInteraction.Ignore);
-
-            if (!slideBlocked && slide.sqrMagnitude > 0.0001f)
-                result = slide;
+            // Si hit.distance ≈ 0 significa que la esfera empezó dentro de un objeto
+            // (ej. borde del hangar, muro cercano). Permitir moverse para no quedar atascado.
+            if (hit.distance < 0.01f)
+            {
+                result = delta;
+            }
             else
-                result = dir * safeDistance; // avanzar hasta el contacto y detenerse
+            {
+                // Distancia segura hasta el impacto (sin penetrar)
+                float safeDistance = Mathf.Max(0f, hit.distance - 0.05f);
+
+                // Intento de deslizamiento a lo largo de la pared
+                Vector3 slide = Vector3.ProjectOnPlane(delta, hit.normal);
+                slide.y = 0f; // mantener solo movimiento horizontal
+
+                // Comprobar si el deslizamiento también está bloqueado
+                bool slideBlocked = Physics.SphereCast(
+                    origin, tankCollisionRadius, slide.normalized, out _,
+                    slide.magnitude, collisionMask, QueryTriggerInteraction.Ignore);
+
+                if (!slideBlocked && slide.sqrMagnitude > 0.0001f)
+                    result = slide;
+                else
+                    result = dir * safeDistance; // avanzar hasta el contacto y detenerse
+            }
         }
 
         // Reactivar colliders del conductor
@@ -439,11 +455,12 @@ public class TankController : MonoBehaviour
                 col.enabled = false;
         }
 
-        // Rayo desde poca altura para NO golpear techos/estructuras por encima
-        Vector3 rayOrigin = transform.position + Vector3.up * 2.5f;
+        // Rayo desde la posición actual del tanque (no demasiado arriba para no golpear techos)
+        // Usamos un origen bajo (0.5m) para evitar que el rayo empiece dentro de un techo de hangar
+        Vector3 rayOrigin = transform.position + Vector3.up * 0.5f;
         RaycastHit hit;
 
-        if (Physics.Raycast(rayOrigin, Vector3.down, out hit, 20f, ~0, QueryTriggerInteraction.Ignore))
+        if (Physics.Raycast(rayOrigin, Vector3.down, out hit, 10f, collisionMask, QueryTriggerInteraction.Ignore))
         {
             float targetY = hit.point.y;
             float currentY = transform.position.y;
@@ -1100,5 +1117,50 @@ public class TankController : MonoBehaviour
         yield return null;
         if (GameHUD.Instance != null)
             GameHUD.Instance.SetHeadingOverride(null);
+    }
+
+    // ══════════════════════════════════════════════════════════════════
+    //  COLLIDERS DEL TANQUE (para que el jugador no lo atraviese)
+    // ══════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// Asegura que el tanque tenga un BoxCollider sólido en el root que cubra
+    /// todo el casco. Los MeshColliders del FBX tienen huecos por donde el
+    /// jugador puede colarse, así que SIEMPRE añadimos un BoxCollider envolvente.
+    /// </summary>
+    void EnsureTankColliders()
+    {
+        // Comprobar si ya hay un BoxCollider en el root (para no duplicar)
+        BoxCollider existingBox = GetComponent<BoxCollider>();
+        if (existingBox != null)
+        {
+            Debug.Log("[TankController] Ya tiene BoxCollider en el root.");
+            return;
+        }
+
+        // Calcular bounds del tanque usando todos los renderers
+        Renderer[] renderers = GetComponentsInChildren<Renderer>();
+        if (renderers.Length == 0)
+        {
+            BoxCollider box = gameObject.AddComponent<BoxCollider>();
+            box.center = new Vector3(0f, 1f, 0f);
+            box.size = new Vector3(3f, 2f, 6f);
+            Debug.Log("[TankController] BoxCollider genérico creado (sin renderers).");
+            return;
+        }
+
+        Bounds bounds = renderers[0].bounds;
+        for (int i = 1; i < renderers.Length; i++)
+            bounds.Encapsulate(renderers[i].bounds);
+
+        BoxCollider autoBox = gameObject.AddComponent<BoxCollider>();
+        autoBox.center = transform.InverseTransformPoint(bounds.center);
+        autoBox.size = new Vector3(
+            Mathf.Abs(transform.InverseTransformVector(bounds.size).x),
+            Mathf.Abs(transform.InverseTransformVector(bounds.size).y),
+            Mathf.Abs(transform.InverseTransformVector(bounds.size).z)
+        );
+
+        Debug.Log("[TankController] BoxCollider envolvente creado. Center=" + autoBox.center + " Size=" + autoBox.size);
     }
 }

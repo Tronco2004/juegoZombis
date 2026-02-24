@@ -97,18 +97,42 @@ public class SimonSaysManager : MonoBehaviour
         }
 
         // Buscar cámara y jugador
-        playerCamera = Camera.main;
-
+        // IMPORTANTE: Buscar la cámara del jugador FPS, NO Camera.main
+        // (que puede ser la Main Camera por defecto de la escena)
         GameObject player = GameObject.FindGameObjectWithTag("Player");
         if (player == null)
         {
             GameObject p = GameObject.Find("Player");
             if (p != null) player = p;
         }
+
+        // Buscar la cámara dentro del jugador (es hija del Player en FirstPersonController)
         if (player != null)
+        {
             playerTransform = player.transform;
-        else if (playerCamera != null)
-            playerTransform = playerCamera.transform;
+
+            // Intentar obtener la cámara del FirstPersonController
+            FirstPersonController fps = player.GetComponent<FirstPersonController>();
+            if (fps != null && fps.playerCamera != null)
+            {
+                playerCamera = fps.playerCamera.GetComponent<Camera>();
+                if (playerCamera == null)
+                    playerCamera = fps.playerCamera.GetComponentInChildren<Camera>();
+            }
+
+            // Si no la encontró por FPS, buscar Camera en los hijos del player
+            if (playerCamera == null)
+                playerCamera = player.GetComponentInChildren<Camera>();
+        }
+
+        // Último recurso: Camera.main
+        if (playerCamera == null)
+            playerCamera = Camera.main;
+
+        if (playerCamera != null)
+            Debug.Log("[SimonSays] Cámara encontrada: " + playerCamera.gameObject.name + " (pos=" + playerCamera.transform.position + ")");
+        else
+            Debug.LogError("[SimonSays] ¡NO se encontró ninguna cámara!");
 
         // Verificar pantallas
         if (pantallas == null || pantallas.Length < 4)
@@ -239,12 +263,26 @@ public class SimonSaysManager : MonoBehaviour
     {
         if (playerCamera == null)
         {
-            playerCamera = Camera.main;
-            if (playerCamera == null)
+            // Buscar cámara del jugador (NO Camera.main)
+            GameObject player = GameObject.FindGameObjectWithTag("Player");
+            if (player == null) player = GameObject.Find("Player");
+
+            if (player != null)
             {
-                // Buscar cualquier cámara activa
-                playerCamera = FindObjectOfType<Camera>();
+                FirstPersonController fps = player.GetComponent<FirstPersonController>();
+                if (fps != null && fps.playerCamera != null)
+                {
+                    playerCamera = fps.playerCamera.GetComponent<Camera>();
+                    if (playerCamera == null)
+                        playerCamera = fps.playerCamera.GetComponentInChildren<Camera>();
+                }
+                if (playerCamera == null)
+                    playerCamera = player.GetComponentInChildren<Camera>();
             }
+
+            if (playerCamera == null)
+                playerCamera = Camera.main;
+
             if (playerCamera == null)
             {
                 Debug.LogError("[SimonSays] NO se encontró ninguna cámara!");
